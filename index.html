@@ -2,7 +2,7 @@
 
 <head>
 
-<title>Learning WebGL &mdash; lesson 1</title>
+<title>Basic Shader Setup</title>
 
 
 <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
@@ -25,7 +25,7 @@
     precision mediump float;
 
     void main(void) {
-        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+        gl_FragColor = vec4(0.8, 0.3, 0.6, 1.0);
     }
 </script>
 
@@ -33,61 +33,94 @@
 <script type="text/javascript">
 
 	// global variables
-    var gl;
-    var mvMatrix = mat4.create();
-    var pMatrix = mat4.create();
+    var gl; // stores context object
 	var mvMatrix = mat4.create(); // model view matrix
 	var pMatrix = mat4.create(); // perspective projection matrix
     var triangleVertexPositionBuffer; // triangle vbo
     var squareVertexPositionBuffer; // square vbo
+    var shaderProgram; // stores shader
 
+
+	// get context 
     function initGL(canvas) {
         try {
-            gl = canvas.getContext("experimental-webgl");
-            gl.viewportWidth = canvas.width;
+            gl = canvas.getContext("webgl");
+            gl.viewportWidth = canvas.width; // store width/height info in context object
             gl.viewportHeight = canvas.height;
         } catch (e) {
         }
         if (!gl) {
-            alert("Could not initialise WebGL, sorry :-(");
+            alert("Could not initialise WebGL");
         }
 	}
 
-    function getShader(gl, id) {
-        var shaderScript = document.getElementById(id);
-        if (!shaderScript) {
-            return null;
-        }
-        var str = "";
-        var k = shaderScript.firstChild;
-        while (k) {
-            if (k.nodeType == 3) {
-                str += k.textContent;
-            }
-            k = k.nextSibling;
-        }
+
+
+	function loadFile(url, callback, gl, errorCallback) {
+		// Set up an asynchronous request
+		var request = new XMLHttpRequest();
+		request.open('GET', url, true);
+
+		// Hook the event that gets called as the request progresses
+		request.onreadystatechange = function () {
+			// If the request is "DONE" (completed or failed)
+			if (request.readyState == 4) {
+				// If we got HTTP status 200 (OK)
+				if (request.status == 200) {
+					callback(request.responseText, gl)
+				} else { // Failed
+					errorCallback(url);
+				}
+			}
+		};
+
+		request.send(null);    
+	}
+
+	function compileShader(shaderText, gl){
+		console.log(shaderText);
+	}
+
+	// parse shader scripts - will be changed to support external scripts
+    function getShader(gl, url, type) {
+		
+		var shaderText;
+		var str;
+
+		loadFile(url, compileShader(shaderText, gl), gl, function (url) {
+			alert('Failed to download "' + url + '"');})
+
         var shader;
-        if (shaderScript.type == "x-shader/x-fragment") {
-            shader = gl.createShader(gl.FRAGMENT_SHADER);
-        } else if (shaderScript.type == "x-shader/x-vertex") {
-            shader = gl.createShader(gl.VERTEX_SHADER);
-        } else {
+        if (type == "x-shader/x-vertex") {
+            shader = gl.createShader(gl.VERTEX);
+        } 
+
+		else if (type == "x-shader/x-fragment") {
+            shader = gl.createShader(gl.FRAGMENT);
+        } 
+		
+		else {
             return null;
         }
+
         gl.shaderSource(shader, str);
         gl.compileShader(shader);
         if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
             alert(gl.getShaderInfoLog(shader));
             return null;
         }
+
         return shader;
 	}
 
 
-    var shaderProgram;
+
+
+
     function initShaders() {
-        var fragmentShader = getShader(gl, "shader-fs");
-        var vertexShader = getShader(gl, "shader-vs");
+        var vertexShader = getShader(gl, "shaders/base.vs", "x-shader/x-vertex");
+        var fragmentShader = getShader(gl, "shaders/base.fs", "x-shader/x-fragment");
+
         shaderProgram = gl.createProgram();
         gl.attachShader(shaderProgram, vertexShader);
         gl.attachShader(shaderProgram, fragmentShader);
@@ -98,11 +131,14 @@
         gl.useProgram(shaderProgram);
         shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
         gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+
+		// create uniforms
         shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
         shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
     }
 
 
+	// set uniforms
     function setMatrixUniforms() {
         gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
         gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
@@ -151,7 +187,7 @@
         gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
         gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 
 				triangleVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
-        setMatrixUniforms();
+        setMatrixUniforms(); // update uniforms with new translation
 		// draw triangle
         gl.drawArrays(gl.TRIANGLES, 0, triangleVertexPositionBuffer.numItems);
 
@@ -161,7 +197,7 @@
         gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexPositionBuffer);
         gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 
 				squareVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
-        setMatrixUniforms();
+        setMatrixUniforms(); // update uniforms with new translation
 		// draw square
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, squareVertexPositionBuffer.numItems);
 
@@ -170,7 +206,7 @@
 
 	function webGLStart() {
 		var canvas = document.getElementById("glcanvas");
-		initGL(canvas);
+		initGL(canvas); // get context
 		initShaders();
 		initBuffers();
 
@@ -188,12 +224,7 @@
 
 
 <body onload="webGLStart();">
-    <a href="http://learningwebgl.com/blog/?p=28">&lt;&lt; GTFO</a><br />
-
     <canvas id="glcanvas" style="border: none;" width="500" height="500"></canvas>
-
-    <br/>
-    <a href="http://learningwebgl.com/blog/?p=28">&lt;&lt; GTFO</a><br />
 </body>
 
 
