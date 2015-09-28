@@ -1,6 +1,4 @@
-// FRAGMENT SHADER
-precision mediump float;
-
+varying highp vec4 vColor;
 void main(void) {
-	gl_FragColor = vec4(0.8, 0.3, 0.6, 1.0);
+   gl_FragColor = vColor;
 }

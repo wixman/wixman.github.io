@@ -1,5 +1,3 @@
-
-
 <!doctype html>
 <html>
 	<head>
@@ -8,8 +6,9 @@
 			body{ background-color: grey; }
 			canvas{ background-color: white; }
 		</style>
-        <script src="http://code.jquery.com/jquery.min.js"></script>
-		<script src="js/gl-matrix.js"></script>
+		<!-- these includes may very with your server setup -->
+		<script src="./js/raf_polyfill.js"></script>
+		<script src="./js/gl-matrix-min.js"></script>
 		<script>
 			var gl = null,
 				canvas = null,
@@ -60,35 +59,46 @@
 				gl.enable(gl.DEPTH_TEST);
 				
 				gl.viewport(0, 0, canvas.width, canvas.height);
-				mat4.perspective(45, canvas.width / canvas.height, 0.1, 100.0, pMatrix);
+				mat4.perspective(pMatrix, 45, canvas.width / canvas.height, 0.1, 100.0 );
 				mat4.identity(mvMatrix);
-				mat4.translate(mvMatrix, [-1.0, -1.0, -7.0]);              
-				mat4.rotate(mvMatrix, angle, [0.0, 1.0, 0.0]);              
+				mat4.translate(mvMatrix, mvMatrix, [-1.0, -1.0, -7.0]);              
+				mat4.rotate(mvMatrix, mvMatrix, angle, [0.0, 1.0, 0.0]);              
 				angle += 0.01;
 			}
 			
 			function initShaders()
 			{
-				//get shader sources with jQuery Ajax
-				$.ajax({
-					async: false,
-				    url: './shaders/base.vs',
-				    success: function (data) {
-				        vs_source = data.firstChild.textContent;
-				    },
-				    dataType: 'xml'
-				});
+				//get shader sources with XMLHttpRequestObject
+				var fs_source = null,
+					vs_source = null;
 
-				$.ajax({
-					async: false,
-				    url: './shaders/base.fs',
-				    success: function (data) {
-				        fs_source = data.firstChild.textContent;
+				var xhr = new XMLHttpRequest();
+				//synchronous request - false third parameter
+				xhr.open('GET', './shaders/base.vs', false);
+				//overriding the mime type is required 
+				xhr.overrideMimeType('text/xml');
+				xhr.send(null);
 
-				    },
-				    dataType: 'xml'
-				});
+				if (xhr.readyState == xhr.DONE) {
+	   				if(xhr.status === 200)
+					{
+						vs_source = xhr.responseText;
+					} else {  
+						console.error("Error: " + xhr.statusText);  
+					}  
+				}
+				xhr.open('GET', './shaders/base.fs', false); 
+				xhr.send(null);
 
+				if (xhr.readyState == xhr.DONE) {
+	   				if(xhr.status === 200)
+					{
+						fs_source = xhr.responseText;
+					} else {  
+						console.error("Error: " + xhr.statusText);  
+					}
+				}  
+				
 
 				//compile shaders	
                 vertexShader = makeShader(vs_source, gl.VERTEX_SHADER);
