@@ -18,13 +18,16 @@
 			#glcanvas {
 				width: 100%;
 				height: 100%;
+				vertical-align: bottom;
+				display: block;
 			}
 
 		</style>
 		<!-- these includes may very with your server setup -->
-		<script src="./js/raf_polyfill.js"></script>
-		<script src="./js/gl-matrix-min.js"></script>
+		<script src="./js/raf_polyfill.js"></script> <!-- request animation frame -->
+		<script src="./js/gl-matrix-min.js"></script> <!-- matrix math library -->
 		<script>
+			// create global variables
 			var gl = null,
 				canvas = null,
 				glProgram = null,
@@ -37,6 +40,7 @@
 				trianglesColorBuffer = null,
 				triangleVerticesIndexBuffer = null;
 		
+			// create model view and perspective projection matrix
 			var mvMatrix = mat4.create(),
 				pMatrix = mat4.create();
 				
@@ -48,6 +52,7 @@
 				canvas.width = window.innerWidth;
 				canvas.height = window.innerHeight;
 				try{
+					// get our webgl context
 					gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");					
 				}catch(e){
 				}
