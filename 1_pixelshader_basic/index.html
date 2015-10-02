@@ -54,7 +54,9 @@
 				vertexShader = null;
 				vbo = null;
 	
+					var count = 0.0;
 			// for uniforms	
+			var startTime = null;
 			var time = null;
 
 			function initWebGL()
@@ -73,13 +75,14 @@
 					initShaders();
 					setupBuffers();
 					getUniforms();
+					startTime = Date.now();
 					(function animLoop(){
 						setupWebGL();
+						currentTime = (Date.now() - startTime) / 1000;
 						setUniforms();
 						drawScene();
-						resize(gl);
-						time = (new Date()).getTime();		
 						requestAnimationFrame(animLoop, canvas);
+						resize(gl);
 					})();
 				}else{	
 					alert(  "Error: Your browser does not appear to support WebGL.");
@@ -177,21 +180,20 @@
 			{
 				gl.vertexAttribPointer( gl, 2, gl.FLOAT, false, 0, 0);
 				gl.enableVertexAttribArray( gl );
-
 				gl.drawArrays(gl.TRIANGLES, 0, 6);
-
 			}
 			
 
 			function getUniforms()
 			{
-
+				glProgram.timeUniform = gl.getUniformLocation(glProgram, "iGlobalTime");
+				glProgram.resUniform = gl.getUniformLocation(glProgram, "iResolution");
 			}
 
 
 			function setUniforms()
 			{
-
+				gl.uniform1f(glProgram.timeUniform, currentTime);
 			}
 
 
