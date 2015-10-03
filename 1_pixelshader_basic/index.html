@@ -55,9 +55,12 @@
 				vbo = null;
 	
 					var count = 0.0;
+
 			// for uniforms	
 			var startTime = null;
 			var time = null;
+			var xres = null;
+			var yres = null;
 
 			function initWebGL()
 			{
@@ -194,6 +197,7 @@
 			function setUniforms()
 			{
 				gl.uniform1f(glProgram.timeUniform, currentTime);
+				gl.uniform3f(glProgram.resUniform, xres, yres, 0.0);
 			}
 
 
@@ -216,6 +220,9 @@
 					// Set the viewport to match
 					gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 				}
+
+				xres = displayWidth;
+				yres = displayHeight;
 			}
 
 
