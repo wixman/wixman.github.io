@@ -45,7 +45,8 @@
 		</style>
 
 		<script src="./js/raf_polyfill.js"></script> <!-- request animation frame -->
-		<script src="./js/vector.js"></script> <!-- vector math -->
+		<script src="./js/gl-matrix-min.js"></script> <!-- vector/matrix math -->
+
 		<script>
 			// create global variables
 			var gl = null,
@@ -55,18 +56,32 @@
 				vertexShader = null;
 				vbo = null;
 
-			var currentlyPressedKeys = {};
-			var count = 0.0;
+
+			// for counter
+			var elapsedTime = 0;
+			var frameCount = 0;
+			var lastTime = new Date().getTime();	
+			var fps = 59;
+
 
 			// for uniforms	
 			var startTime = null,
-				time = null,
+				currentTime = null,
 				xres = null,
 				yres = null;
-				
-			var camPos = new Vector(0.0, 0.5, 0.0);
-			var camFwd = new Vector(0.0, 0.0, 1.0);
-			var camUp = new Vector(0.0, 1.0, 0.0);
+			
+			var camPos = vec3.fromValues(0.0, 0.5, 0.0);
+			var camFwd = vec3.fromValues(0.0, 0.0, 1.0);
+			var camUp = vec3.fromValues(0.0, 1.0, 0.0);
+			var camRight = vec3.fromValues(1.0, 0.0, 0.0);
+
+			// input variables
+			var currentlyPressedKeys = {};
+			var mouseDown = false;
+			var firstMouse = true;
+			var lastMouseX = null;
+			var lastMouseY = null;
+
 
 			function initWebGL()
 			{
@@ -79,8 +94,7 @@
 				}catch(e){
 				}
 								
-				if(gl)
-				{
+				if(gl){
 					initShaders();
 					setupBuffers();
 					getUniforms();
@@ -89,16 +103,25 @@
 					document.onkeydown = handleKeyDown;
 					document.onkeyup = handleKeyUp;
 
-					(function animLoop(){
+					canvas.onmousedown = handleMouseDown;
+					document.onmouseup = handleMouseUp;
+					document.onmousemove = handleMouseMove;
+
+					(function animLoop() {
 						setupWebGL();
 						currentTime = (Date.now() - startTime) / 1000;
 						setUniforms();
 						drawScene();
+						handleKeys();
+						updateFPS();
 						requestAnimationFrame(animLoop, canvas);
 						resize(gl);
-					})();
-				}else{	
-					alert(  "Error: Your browser does not appear to support WebGL.");
+					} )();
+				}
+				
+				else 
+				{	
+					alert( "Error: Your browser does not support WebGL." );
 				}
 			}
 			
@@ -204,6 +227,7 @@
 				glProgram.posUniform = gl.getUniformLocation(glProgram, "iCamPos");
 				glProgram.fwdUniform = gl.getUniformLocation(glProgram, "iCamFwd");
 				glProgram.upUniform = gl.getUniformLocation(glProgram, "iCamUp");
+				glProgram.stUniform = gl.getUniformLocation(glProgram, "iNotST");
 				
 
 			}
@@ -212,8 +236,11 @@
 			function setUniforms()
 			{
 				gl.uniform1f(glProgram.timeUniform, currentTime);
+				gl.uniform1i(glProgram.stUniform, 1);
 				gl.uniform3f(glProgram.resUniform, xres, yres, 0.0);
-				gl.uniform3f(glProgram.posUniform, camPos.x, camPos.y, camPos.z);
+				gl.uniform3fv(glProgram.posUniform, camPos);
+				gl.uniform3fv(glProgram.fwdUniform, camFwd);
+				gl.uniform3fv(glProgram.upUniform, camUp);
 			}
 
 
@@ -242,39 +269,143 @@
 			}
 
 
+		function updateFPS(){
+
+			var now = new Date().getTime();	
+
+			frameCount++;
+			elapsedTime += (now - lastTime);
+
+			lastTime = now;
+
+			if(elapsedTime >= 1000) {
+				fps = frameCount;
+				frameCount = 0;
+				elapsedTime -= 1000;
+			}
+
+			document.getElementById('hud').innerHTML = "FPS: " + fps;
+
+		}
+
+
+
+		////////// KEYBOARD FUNCTIONS ////////////
+
 		function handleKeyDown(event) {
 			currentlyPressedKeys[event.keyCode] = true;
-
-			if (String.fromCharCode(event.keyCode) == "Q") {
-				console.log("UP");
-				camPos.y += 1.0;
-			} else if (String.fromCharCode(event.keyCode) == "E") {
-				console.log("DOWN");
-				camPos.y -= 1.0;
-			} else if (String.fromCharCode(event.keyCode) == "A") {
-				camPos.x -= 1.0;
-			} else if (String.fromCharCode(event.keyCode) == "D") {
-				camPos.x += 1.0;
-			} else if (String.fromCharCode(event.keyCode) == "W") {
-				camPos = camPos.add(camFwd.multiply(0.5));
-			} else if (String.fromCharCode(event.keyCode) == "S") {
-				camPos = camPos.subtract(camFwd.multiply(0.5));
-			}
 		}
 
 		function handleKeyUp(event) {
 			currentlyPressedKeys[event.keyCode] = false;
 		}
+		
+		function handleKeys(event) {
+			var tempVec = vec3.create();
+
+			if (currentlyPressedKeys[69]) {
+				vec3.add(camPos, camPos, vec3.fromValues(0.0, 0.1, 0.0)); }
+			if (currentlyPressedKeys[81]) {
+				vec3.add(camPos, camPos, vec3.fromValues(0.0, -0.1, 0.0)); } 
+			if (currentlyPressedKeys[65]) {
+				vec3.scale(tempVec, camRight, 0.1);
+				vec3.subtract(camPos, camPos, tempVec); } 
+			if (currentlyPressedKeys[68]) {
+				vec3.scale(tempVec, camRight, 0.1);
+				vec3.add(camPos, camPos, tempVec); } 
+			if (currentlyPressedKeys[87]) {
+				vec3.scale(tempVec, camFwd, 0.1)
+				vec3.add(camPos, camPos, tempVec); } 
+			if (currentlyPressedKeys[83]) {
+				vec3.scale(tempVec, camFwd, 0.1)
+				vec3.subtract(camPos, camPos, tempVec); } 
+		}	
+
+
+		////////// MOUSE FUNCTIONS ////////////
+		var moveDistance = 0.3;	
+
+
+		function handleMouseDown(event) {
+			mouseDown = true;
+			lastMouseX = event.clientX;
+			lastMouseY = event.clientY;
+		}
+
+
+		function handleMouseUp(event) {
+			mouseDown = false;
+		}
+
+
+		function handleMouseMove(event) {
+			if (!mouseDown) {
+				return;
+			}
+
+			if(firstMouse) {
+				  pitch = 0;
+				  yaw = 0;
+				  deltaX = 0;
+				  deltaY = 0;
+				  firstMouse = false;
+			} 
+
+			var newX = event.clientX;
+			var newY = event.clientY;
+
+			var camRotateMat4 = mat4.create();
+			mat4.identity(camRotateMat4);
+			var camRotateMat4 = mat4.create();
+			mat4.identity(camRotateMat4);
+
+			var deltaX = (newX - lastMouseX) * moveDistance;
+			var deltaY = (newY - lastMouseY) * moveDistance;
+
+			yaw += deltaX;
+			pitch += deltaY;
+
+			if (pitch > 89.0)
+				pitch = 89.0;
+			if (pitch < -89.0)
+				pitch = -89.0;
+
+			var newFwdX = Math.sin(degToRad(-yaw)) * Math.cos(degToRad(-pitch));
+		    var newFwdY = Math.sin(degToRad(-pitch));
+			var newFwdZ = Math.cos(degToRad(-yaw)) * Math.cos(degToRad(-pitch));
+
+			vec3.set(camFwd, newFwdX, newFwdY, newFwdZ);
+			vec3.normalize(camFwd, camFwd);
+
+			// generate new up vector
+			vec3.cross(camRight, camFwd, vec3.fromValues(0.0, 1.0, 0.0)); 
+			vec3.cross(camUp, camRight, camFwd);
+			vec3.normalize(camUp, camUp);
+
+			vec3.cross(camRight, camFwd, camUp);
+			vec3.normalize(camRight, camRight);
+
+			lastMouseX = newX;
+			lastMouseY = newY;
+		}
+
+	
+		// extra math
+		function degToRad(degrees) {
+			return degrees * Math.PI / 180;
+		}
 
 
 		</script>
+
+
 	</head>
+
 	<body onload="initWebGL()">
 		<canvas id="glcanvas"> 
 			Your browser does not support the HTML5 canvas element.
 		</canvas>
 		<div id="hud">
-			FPS: 59.7
 		</div>
 	</body>
 </html>

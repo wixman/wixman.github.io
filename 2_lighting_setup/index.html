@@ -56,11 +56,17 @@
 				vertexShader = null;
 				vbo = null;
 
-			var count = 0.0;
+
+			// for counter
+			var elapsedTime = 0;
+			var frameCount = 0;
+			var lastTime = new Date().getTime();	
+			var fps = 59;
+
 
 			// for uniforms	
 			var startTime = null,
-				time = null,
+				currentTime = null,
 				xres = null,
 				yres = null;
 			
@@ -107,6 +113,7 @@
 						setUniforms();
 						drawScene();
 						handleKeys();
+						updateFPS();
 						requestAnimationFrame(animLoop, canvas);
 						resize(gl);
 					} )();
@@ -262,6 +269,27 @@
 			}
 
 
+		function updateFPS(){
+
+			var now = new Date().getTime();	
+
+			frameCount++;
+			elapsedTime += (now - lastTime);
+
+			lastTime = now;
+
+			if(elapsedTime >= 1000) {
+				fps = frameCount;
+				frameCount = 0;
+				elapsedTime -= 1000;
+			}
+
+			document.getElementById('hud').innerHTML = "FPS: " + fps;
+
+		}
+
+
+
 		////////// KEYBOARD FUNCTIONS ////////////
 
 		function handleKeyDown(event) {
@@ -378,7 +406,6 @@
 			Your browser does not support the HTML5 canvas element.
 		</canvas>
 		<div id="hud">
-			FPS: 59.7
 		</div>
 	</body>
 </html>

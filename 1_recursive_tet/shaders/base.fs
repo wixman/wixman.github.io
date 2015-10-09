@@ -13,7 +13,8 @@ uniform vec3	  iCamUp;
 uniform bool      iNotST;
 
 vec3   camRight = cross(iCamFwd, iCamUp);
-float  _aspectRatio = iResolution.x/iResolution.y; // aspect ratio
+/*float  _aspectRatio = iResolution.x/iResolution.y; // aspect ratio*/
+float _aspectRatio = 1.0;
 float  _zNear  = 0.0; // Near plane distance from camera
 float  _zFar = 15.0; // Far plane distance from camera
 float  _focalLength = 1.67; // Distance between eye and image-plane
@@ -80,7 +81,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     uv.x *= iResolution.x / iResolution.y;
     
     // ray direction
-	vec3 rd = normalize(iCamFwd * _focalLength + (camRight * uv.x * _aspectRatio + iCamUp * uv.y));                  
+	vec3 rd = normalize(iCamFwd * _focalLength + (camRight * uv.x + iCamUp * uv.y));                  
 	vec3 ro = iCamPos;
     
     float t = trace(ro, rd);
