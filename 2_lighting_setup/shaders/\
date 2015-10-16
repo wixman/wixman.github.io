@@ -48,7 +48,7 @@ vec4 map(vec3 p )
 
     float s = 1.0; // initialize scale to zero
     
-    for( int m=0; m<4; m++ )
+    for( int m=0; m<6; m++ )
     {
         vec3 a = mod( p*s, 2.0 )-1.0; // repeat
         s *= 3.0; // shrink cross every iteration
