@@ -12,6 +12,13 @@ uniform vec3	  iCamFwd;
 uniform vec3	  iCamUp;
 uniform bool      iNotST;
 
+// lighting toggles
+uniform bool      iSunOn;
+uniform bool      iSkyOn;
+uniform bool      iBounceOn;
+uniform bool      iOccOn;
+uniform bool      iFogOn;
+
 vec3   camRight = cross(iCamFwd, iCamUp);
 float  _zNear  = 0.0; // Near plane distance from camera
 float  _zFar = 15.0; // Far plane distance from camera
@@ -25,11 +32,11 @@ mat3 m1= mat3(cos(iGlobalTime * 0.6), 0.0, sin(iGlobalTime * 0.6),
 			  0.0, 1.0, 0.0,
 			  -sin(iGlobalTime * 0.6), 0.0, cos(iGlobalTime * 0.6) );        
 
-mat3 m2= mat3(cos(iGlobalTime * 0.6), 0.0, sin(iGlobalTime * 0.6),
-			  0.0, 1.0, 0.0,
-			  -sin(iGlobalTime * 0.6), 0.0, cos(iGlobalTime * 0.6) );        
+mat3 m2= mat3(cos(iGlobalTime * 0.6), -sin(iGlobalTime * 0.6), 0.0,
+			  sin(iGlobalTime * 0.6), cos(iGlobalTime * 0.6), 0.0,
+			  0.0, 0.0, 1.0 );        
 
-// return maximum component of a vector
+// return maximum component of a 3f vector
 float maxcomp(in vec3 p ) 
 { 
 	return max(p.x,max(p.y,p.z));
@@ -47,11 +54,11 @@ float sdBox( vec3 p, vec3 b )
 // main distance function
 vec4 distanceFunction(vec3 p )
 {
-   	p *= m1; 
+   	p *= m1 * m2; 
 	
-	float d = sdBox( p, vec3(1.0) );
+	float dist = sdBox( p, vec3(1.0) );
 
-	vec4 res = vec4(d, 1.0, 0.0, 0.0);
+	vec4 res = vec4(dist, 1.0, 0.0, 0.0);
 
     float s = 1.0; // initialize scale to zero
     
@@ -60,17 +67,17 @@ vec4 distanceFunction(vec3 p )
         vec3 a = mod( p*s, 2.0 )-1.0; // repeat
         s *= 3.0; // shrink cross every iteration
         vec3 r = abs(1.0 - 3.0*abs(a));
-        float da = max(r.x,r.y);
-        float db = max(r.y,r.z);
-        float dc = max(r.z,r.x);
-        float c = (min(da,min(db,dc))-1.0)/s;
+        float dista = max(r.x,r.y);
+        float distb = max(r.y,r.z);
+        float distc = max(r.z,r.x);
+        float c = (min(dista,min(distb,distc))-1.0)/s;
 
-        if( c>d )
+        if( c>dist )
         {
-          d = c;
+          dist = c;
 		  // X component is distance
 		  // Y component is occlusion
-		  res = vec4( d, min(res.y, 0.2*da*db*dc), (1.0+float(m))/4.0, 0.0);
+		  res = vec4( dist, min(res.y, 0.2*dista*distb*distc), (1.0+float(m))/4.0, 0.0);
         }
     }
 
@@ -78,7 +85,7 @@ vec4 distanceFunction(vec3 p )
 }
 
 
-vec4 intersect(vec3 ro, vec3 rd)
+vec4 intersect(vec3 rayOrigin, vec3 rayDir)
 {
     float t = 0.0; // marching distance
 	vec4 res = vec4(-1.0);	
@@ -90,7 +97,7 @@ vec4 intersect(vec3 ro, vec3 rd)
 		if( h.x < 0.005 || t > 10.0 ) 
 			break;
 		
-		vec3 p = ro + rd * t; // our position along the ray
+		vec3 p = rayOrigin + rayDir * t; // our position along the ray
         h = distanceFunction(p);
 		res = vec4(t, h.yzw);
         t += h.x; 
@@ -114,7 +121,7 @@ vec3 calcNormal(in vec3 p)
 }
 
 
-float softshadow( in vec3 ro, in vec3 rd, float mint, float k )
+float softshadow( in vec3 rayOrigin, in vec3 rayDir, float mint, float k )
 {
     float res = 1.0;
     float t = mint;
@@ -122,7 +129,7 @@ float softshadow( in vec3 ro, in vec3 rd, float mint, float k )
     for( int i=0; i<32; i++ )
     {
 		// raymarch along the light vector
-        h = distanceFunction(ro + rd*t).x;
+        h = distanceFunction(rayOrigin + rayDir*t).x;
         res = min( res, k*h/t );
 		t += clamp( h, 0.005, 0.1 );
     }
@@ -131,21 +138,11 @@ float softshadow( in vec3 ro, in vec3 rd, float mint, float k )
 
 vec3 sunCol = vec3(258.0, 228.0, 170.0) / 3555.0;
 vec3 sunDir = normalize(vec3(0.93, 1.0, -1.5));
-
-vec3 GetSunColorReflection(vec3 rayDir, vec3 sunDir)
-{
-	vec3 localRay = normalize(rayDir);
-	float dist = 1.0 - (dot(localRay, sunDir) * 0.5 + 0.5);
-	float sunIntensity = 0.015 / dist;
-	sunIntensity = pow(sunIntensity, 0.3)*100.0;
-
-    sunIntensity += exp(-dist*12.0)*300.0;
-	sunIntensity = min(sunIntensity, 40000.0);
-	return sunCol * sunIntensity*0.0425;
-}
+vec3 skyCol = vec3(0.09, 0.43, 0.95);
+vec3 groundCol = vec3(0.99, 0.95, 0.85);
 
 
-vec3 GetSunColorSmall(vec3 rayDir, vec3 sunDir)
+vec3 GetSunColor(vec3 rayDir, vec3 sunDir)
 {
 	vec3 localRay = normalize(rayDir);
 	float dist = 1.0 - (dot(localRay, sunDir) * 0.5 + 0.5);
@@ -156,37 +153,37 @@ vec3 GetSunColorSmall(vec3 rayDir, vec3 sunDir)
 }
 
 
-
-vec3 render(in vec3 ro, in vec3 rd)
+vec3 render(in vec3 rayOrigin, in vec3 rayDir)
 {
 	// background gradient based on normalized y component of ray direction
 	vec3 col;  
-	vec4 tmat = intersect(ro, rd);
+	vec4 distAndMat = intersect(rayOrigin, rayDir);
 	
-	if( tmat.x > 0.0 )
+	if( distAndMat.x > 0.0 )
 	{
-		vec3 p = ro + tmat.x * rd; // sample position in space
+		vec3 p = rayOrigin + distAndMat.x * rayDir; // sample position in space
 		vec3 n = calcNormal(p); 
-		float occ = tmat.y;
+		float occ = distAndMat.y;
 		float sunShadow = softshadow(p, sunDir, 0.01, 1.0); 
-		vec3 refColor = GetSunColorReflection(reflect(rd, n), sunDir);
 
-		col = sunCol * sunShadow * 25.0 * dot(sunDir, n); // main sunlight
-		/*col = sunCol * sunShadow * 25.0; // * dot(sunDir, n); // main sunlight*/
-		col += vec3(0.1, 0.35, 0.95) * (n.y * 0.5 + 0.5) * occ; // add ambient light from sky
-		col += vec3(0.3, 0.25, 0.15) * (-n.y * 0.5 + 0.5) * occ; // add ambient light from ground
-		// col += refColor * 0.9;
+		occ = 1.0 - ( (1.0 - occ) * float(iOccOn) );
+		sunShadow = 1.0 - ( (1.0 - sunShadow) * float(iSunOn) );
 
-		col = mix(vec3(0.98) + min(vec3(0.25),GetSunColorSmall(rd, sunDir))*2.0, col, 
-				exp(-tmat.x*0.085));
+		col = (sunCol * float(iSunOn) ) * sunShadow * 25.0 ; //* dot(sunDir, n); // main sunlight
+		col += (skyCol * (n.y * 0.5 + 0.5) * occ) * float(iSkyOn); // add ambient from sky
+		col += (groundCol * 0.3 * (-n.y * 0.5 + 0.5) * occ) * float(iBounceOn); // add ambient light from ground
+		// add fog
+		if(iFogOn)
+		col = mix(vec3(0.98) + min(vec3(0.25),GetSunColor(rayDir, sunDir))*2.0, col, 
+				exp(-distAndMat.x*0.085));
 
 	}
 
 	else
 	{
 		// render bg ramp
-		col = mix(vec3(1.0, 0.95, 0.85), vec3(0.2, 0.5, 0.95), 0.5 + 0.5 * rd.y * 2.0);  
-        col += GetSunColorSmall(rd, sunDir);
+		col = mix(groundCol, skyCol, 0.5 + 0.5 * rayDir.y * 2.0);  
+        col += GetSunColor(rayDir, sunDir);
 	}
 
 	return col;
@@ -201,11 +198,10 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     uv.x *= iResolution.x / iResolution.y;
     
     // ray direction
-	vec3 rd = normalize(iCamFwd * _focalLength + (camRight * uv.x + iCamUp * uv.y));                  
-	vec3 ro = iCamPos;
-    
+	vec3 rayDir = normalize(iCamFwd * _focalLength + (camRight * uv.x + iCamUp * uv.y));                  
+	vec3 rayOrigin = iCamPos;
 
-	vec3 col = render(ro, rd);
+	vec3 col = render(rayOrigin, rayDir);
 
 	vec4 color = vec4(col, 1.0);
     

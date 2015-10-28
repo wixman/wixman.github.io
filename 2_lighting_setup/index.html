@@ -77,11 +77,18 @@
 			var startPosY = -0.521;
 			var startPosZ = 0.018;
 			
-
 			var camPos = vec3.fromValues(startPosX, startPosY, startPosZ);
 			var camFwd = vec3.fromValues(startFwdX, startFwdY, startFwdZ);
 			var camUp = vec3.fromValues(0.0, 1.0, 0.0);
 			var camRight = vec3.fromValues(1.0, 0.0, 0.0);
+
+			
+			// lighting toggles
+			var sunOn = true;
+			var skyOn = true;
+			var bounceOn = true;
+			var occOn = true;
+			var fogOn = true;
 
 			// input variables
 			var currentlyPressedKeys = {};
@@ -237,8 +244,13 @@
 				glProgram.posUniform = gl.getUniformLocation(glProgram, "iCamPos");
 				glProgram.fwdUniform = gl.getUniformLocation(glProgram, "iCamFwd");
 				glProgram.upUniform = gl.getUniformLocation(glProgram, "iCamUp");
-				glProgram.stUniform = gl.getUniformLocation(glProgram, "iNotST");
-				
+			
+				// lighting toggles   
+				glProgram.sunUniform = gl.getUniformLocation(glProgram, "iSunOn");
+				glProgram.skyUniform = gl.getUniformLocation(glProgram, "iSkyOn");
+				glProgram.bounceUniform = gl.getUniformLocation(glProgram, "iBounceOn");
+				glProgram.occUniform = gl.getUniformLocation(glProgram, "iOccOn");
+				glProgram.fogUniform = gl.getUniformLocation(glProgram, "iFogOn");
 
 			}
 
@@ -246,11 +258,17 @@
 			function setUniforms()
 			{
 				gl.uniform1f(glProgram.timeUniform, currentTime);
-				gl.uniform1i(glProgram.stUniform, 1);
 				gl.uniform3f(glProgram.resUniform, xres, yres, 0.0);
 				gl.uniform3fv(glProgram.posUniform, camPos);
 				gl.uniform3fv(glProgram.fwdUniform, camFwd);
 				gl.uniform3fv(glProgram.upUniform, camUp);
+
+				// lighting toggles   
+				gl.uniform1i(glProgram.sunUniform, sunOn);
+				gl.uniform1i(glProgram.skyUniform, skyOn);
+				gl.uniform1i(glProgram.bounceUniform, bounceOn);
+				gl.uniform1i(glProgram.occUniform, occOn);
+				gl.uniform1i(glProgram.fogUniform, fogOn);
 			}
 
 
@@ -304,6 +322,22 @@
 
 		function handleKeyDown(event) {
 			currentlyPressedKeys[event.keyCode] = true;
+			// lighting toggles
+			if (currentlyPressedKeys[49]) {
+				sunOn = !sunOn;
+			}
+			if (currentlyPressedKeys[50]) {
+				skyOn = !skyOn;
+			}
+			if (currentlyPressedKeys[51]) {
+				bounceOn = !bounceOn;
+			}
+			if (currentlyPressedKeys[52]) {
+				occOn = !occOn;
+			}
+			if (currentlyPressedKeys[53]) {
+				fogOn = !fogOn;
+			}
 		}
 
 		function handleKeyUp(event) {
@@ -312,7 +346,7 @@
 		
 		function handleKeys(event) {
 			var tempVec = vec3.create();
-
+			
 			if (currentlyPressedKeys[69]) {
 				vec3.add(camPos, camPos, vec3.fromValues(0.0, 0.1, 0.0)); }
 			if (currentlyPressedKeys[81]) {
@@ -335,6 +369,7 @@
 				camFwd = vec3.fromValues(startFwdX, startFwdY, startFwdZ);
 				camUp = vec3.fromValues(0.0, 1.0, 0.0);
 				camRight = vec3.fromValues(1.0, 0.0, 0.0);}
+
 		}	
 
 
@@ -430,7 +465,6 @@
 
 
 		<div id="hud">
-		<embed src="../Sublime_-_Santeria.mid" hidden="true" autostart="true" autoplay="true">
 		</div>
 	</body>
 </html>
