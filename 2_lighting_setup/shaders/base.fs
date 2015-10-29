@@ -52,13 +52,11 @@ float sdBox( vec3 p, vec3 b )
 
 
 // main distance function
-vec4 distanceFunction(vec3 p )
+float distanceFunction(vec3 p )
 {
    	p *= m1 * m2; 
 	
 	float dist = sdBox( p, vec3(1.0) );
-
-	vec4 res = vec4(dist, 1.0, 0.0, 0.0);
 
     float s = 1.0; // initialize scale to zero
     
@@ -75,38 +73,34 @@ vec4 distanceFunction(vec3 p )
         if( c>dist )
         {
           dist = c;
-		  // X component is distance
-		  // Y component is occlusion
-		  res = vec4( dist, min(res.y, 0.2*dista*distb*distc), (1.0+float(m))/4.0, 0.0);
         }
     }
 
-    return res;
+    return dist;
 }
 
 
-vec4 intersect(vec3 rayOrigin, vec3 rayDir)
+float intersect(vec3 rayOrigin, vec3 rayDir)
 {
     float t = 0.0; // marching distance
 	vec4 res = vec4(-1.0);	
-	vec4 h = vec4(1.0);
+	float h = 1.0;
 
 	// create 3x3 rotation matrix
     for(int i = 0; i < 64; ++i)
     {
-		if( h.x < 0.005 || t > 10.0 ) 
+		if( h < 0.005 || t > 10.0 ) 
 			break;
 		
 		vec3 p = rayOrigin + rayDir * t; // our position along the ray
         h = distanceFunction(p);
-		res = vec4(t, h.yzw);
-        t += h.x; 
+        t += h; 
 	}
    
 	if( t > 10.0 )
-		res = vec4(-1.0);
+		t = -1.0;
 
-    return res;
+    return t;
 }
 
 
@@ -114,9 +108,9 @@ vec3 calcNormal(in vec3 p)
 {
     vec3 eps = vec3(.001,0.0,0.0);
     vec3 n;
-    n.x = distanceFunction(p+eps.xyy).x - distanceFunction(p-eps.xyy).x;
-    n.y = distanceFunction(p+eps.yxy).x - distanceFunction(p-eps.yxy).x;
-    n.z = distanceFunction(p+eps.yyx).x - distanceFunction(p-eps.yyx).x;
+    n.x = distanceFunction(p+eps.xyy) - distanceFunction(p-eps.xyy);
+    n.y = distanceFunction(p+eps.yxy) - distanceFunction(p-eps.yxy);
+    n.z = distanceFunction(p+eps.yyx) - distanceFunction(p-eps.yyx);
     return normalize(n);
 }
 
@@ -129,7 +123,7 @@ float softshadow( in vec3 rayOrigin, in vec3 rayDir, float mint, float k )
     for( int i=0; i<32; i++ )
     {
 		// raymarch along the light vector
-        h = distanceFunction(rayOrigin + rayDir*t).x;
+        h = distanceFunction(rayOrigin + rayDir*t);
         res = min( res, k*h/t );
 		t += clamp( h, 0.005, 0.1 );
     }
@@ -153,17 +147,33 @@ vec3 GetSunColor(vec3 rayDir, vec3 sunDir)
 }
 
 
+float GetOcc(vec3 p, vec3 n)
+{
+	float stepSize = 0.01;
+	float t = stepSize;
+	float occ = 0.0;
+	for(int i = 0; i < 10; ++i)
+	{
+		float d = distanceFunction(p + n * t);
+		occ += t - d; // Actual distance to surface - distance field value
+		t += stepSize;
+	}
+
+	return clamp(occ, 0.0, 1.0);
+}
+
+
 vec3 render(in vec3 rayOrigin, in vec3 rayDir)
 {
 	// background gradient based on normalized y component of ray direction
 	vec3 col;  
-	vec4 distAndMat = intersect(rayOrigin, rayDir);
+	float dist = intersect(rayOrigin, rayDir);
 	
-	if( distAndMat.x > 0.0 )
+	if( dist > 0.0 )
 	{
-		vec3 p = rayOrigin + distAndMat.x * rayDir; // sample position in space
+		vec3 p = rayOrigin + dist * rayDir; // sample position in space
 		vec3 n = calcNormal(p); 
-		float occ = distAndMat.y;
+		float occ = 1.0 - GetOcc(p, n);
 		float sunShadow = softshadow(p, sunDir, 0.01, 1.0); 
 
 		occ = 1.0 - ( (1.0 - occ) * float(iOccOn) );
@@ -171,11 +181,12 @@ vec3 render(in vec3 rayOrigin, in vec3 rayDir)
 
 		col = (sunCol * float(iSunOn) ) * sunShadow * 25.0 ; //* dot(sunDir, n); // main sunlight
 		col += (skyCol * (n.y * 0.5 + 0.5) * occ) * float(iSkyOn); // add ambient from sky
-		col += (groundCol * 0.3 * (-n.y * 0.5 + 0.5) * occ) * float(iBounceOn); // add ambient light from ground
+		col += (groundCol * 0.3 * (-n.y * 0.5 + 0.5) * occ) * float(iBounceOn); // add ambient from ground
+
 		// add fog
 		if(iFogOn)
 		col = mix(vec3(0.98) + min(vec3(0.25),GetSunColor(rayDir, sunDir))*2.0, col, 
-				exp(-distAndMat.x*0.085));
+				exp(-dist*0.085));
 
 	}
 
