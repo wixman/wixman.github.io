@@ -1,0 +1,470 @@
+<!doctype html>
+<html>
+	<head>
+		<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+		<meta content="utf-8" http-equiv="encoding">
+
+		<title>Basic Raymarching Test</title>
+
+		<style>
+			body{ background-color: #100806;
+					}
+					
+			canvas{ background-color: #100806;
+					position: absolute;
+					z-index:1;
+			}
+			body, html { width: 100%;
+				height: 100%;
+				border: 0px;
+				padding: 0px;
+				margin: 0px;
+				cursor: pointer;
+			   	cursor: hand; 
+			}
+
+			#glcanvas {
+				width: 100%;
+				height: 100%;
+				vertical-align: bottom;
+				display: block;
+			}
+
+			#hud {
+				position: absolute;
+				margin: 0 auto;		
+				z-index: 2;
+				font-family: Helvetica,Arial,sans-serif;
+				font-size:10px;
+				font-weight:normal;
+				line-height:15px; 
+				color: #fff;
+				right: 10px;
+				bottom: 7px;}
+
+		</style>
+
+		<script src="./js/raf_polyfill.js"></script> <!-- request animation frame -->
+		<script src="./js/gl-matrix-min.js"></script> <!-- vector/matrix math -->
+
+		<script>
+			// create global variables
+			var gl = null,
+				canvas = null,
+				glProgram = null,
+				fragmentShader = null,
+				vertexShader = null;
+				vbo = null;
+
+
+			// for counter
+			var elapsedTime = 0;
+			var frameCount = 0;
+			var lastTime = new Date().getTime();	
+			var fps = 59;
+
+
+			// for uniforms	
+			var startTime = null,
+				currentTime = null,
+				xres = null,
+				yres = null;
+			
+			var startFwdX = 0.88;
+			var startFwdY = 0.25;
+			var startFwdZ = -0.39;
+			var startPosX = -3.027;
+			var startPosY = -0.521;
+			var startPosZ = 0.018;
+			
+			var camPos = vec3.fromValues(startPosX, startPosY, startPosZ);
+			var camFwd = vec3.fromValues(startFwdX, startFwdY, startFwdZ);
+			var camUp = vec3.fromValues(0.0, 1.0, 0.0);
+			var camRight = vec3.fromValues(1.0, 0.0, 0.0);
+
+			
+			// lighting toggles
+			var sunOn = true;
+			var skyOn = true;
+			var bounceOn = true;
+			var occOn = true;
+			var fogOn = true;
+
+			// input variables
+			var currentlyPressedKeys = {};
+			var mouseDown = false;
+			var firstMouse = true;
+			var lastMouseX = null;
+			var lastMouseY = null;
+
+
+			function initWebGL()
+			{
+				canvas = document.getElementById("glcanvas");  
+				canvas.width = window.innerWidth;
+				canvas.height = window.innerHeight;
+				try{
+					// get our webgl context
+					gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");					
+				}catch(e){
+				}
+								
+				if(gl){
+					initShaders();
+					setupBuffers();
+					getUniforms();
+					startTime = Date.now();
+
+					document.onkeydown = handleKeyDown;
+					document.onkeyup = handleKeyUp;
+
+					canvas.onmousedown = handleMouseDown;
+					document.onmouseup = handleMouseUp;
+					document.onmousemove = handleMouseMove;
+					
+
+					// MAIN LOOP
+					(function animLoop() {
+						setupWebGL();
+						currentTime = (Date.now() - startTime) / 1000;
+						setUniforms();
+						drawScene();
+						handleKeys();
+						updateFPS();
+						requestAnimationFrame(animLoop, canvas);
+						resize(gl);
+					} )();
+				}
+				
+				else 
+				{	
+					alert( "Error: Your browser does not support WebGL." );
+				}
+			}
+			
+			function setupWebGL()
+			{
+				//set the clear color to a shade of green
+				gl.clearColor(0.9, 0.5, 0.8, 1.0); 	
+				gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); 	
+				gl.enable(gl.DEPTH_TEST);
+				
+				gl.viewport(0, 0, canvas.width, canvas.height);
+			}
+			
+			function initShaders()
+			{
+				//get shader sources with XMLHttpRequestObject
+				var fs_source = null,
+					vs_source = null;
+
+				var xhr = new XMLHttpRequest();
+				//synchronous request - false third parameter
+				xhr.open('GET', './shaders/base.vs', false);
+				//overriding the mime type is required 
+				xhr.overrideMimeType('text/plain');
+				xhr.send(null);
+
+				if (xhr.readyState == xhr.DONE) {
+	   				if(xhr.status === 200)
+					{
+						vs_source = xhr.responseText;
+					} else {  
+						console.error("Error: " + xhr.statusText);  
+					}  
+				}
+				xhr.open('GET', './shaders/base.fs', false); 
+				xhr.send(null);
+
+				if (xhr.readyState == xhr.DONE) {
+	   				if(xhr.status === 200)
+					{
+						fs_source = xhr.responseText;
+					} else {  
+						console.error("Error: " + xhr.statusText);  
+					}
+				}  
+				
+
+				//compile shaders	
+                vertexShader = makeShader(vs_source, gl.VERTEX_SHADER);
+				fragmentShader = makeShader(fs_source, gl.FRAGMENT_SHADER);
+				
+				//create program
+				glProgram = gl.createProgram();
+				
+				//attach and link shaders to the program
+                gl.attachShader(glProgram, vertexShader);
+                gl.attachShader(glProgram, fragmentShader);
+                gl.linkProgram(glProgram);
+
+                if (!gl.getProgramParameter(glProgram, gl.LINK_STATUS)) {
+                    alert("Unable to initialize the shader program.");
+                }
+				
+				//use program
+				gl.useProgram(glProgram);
+			}
+			
+			function makeShader(src, type)
+			{
+				//compile the vertex shader
+				var shader = gl.createShader(type);
+                gl.shaderSource(shader, src);
+                gl.compileShader(shader);
+
+                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                    alert("Error compiling shader: " + gl.getShaderInfoLog(shader));
+                }
+				return shader;
+			}
+			
+			function setupBuffers()
+			{
+				var vertices = new Float32Array( [ -1.0, -1.0,   1.0, -1.0,    -1.0,  1.0,     
+													1.0, -1.0,    1.0,  1.0,    -1.0,  1.0] );
+				vbo = gl.createBuffer();
+				gl.bindBuffer( gl.ARRAY_BUFFER, vbo );
+				gl.bufferData( gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW );		    
+			}
+
+			
+			function drawScene()
+			{
+				gl.vertexAttribPointer( gl, 2, gl.FLOAT, false, 0, 0);
+				gl.enableVertexAttribArray( gl );
+				gl.drawArrays(gl.TRIANGLES, 0, 6);
+			}
+			
+
+			function getUniforms()
+			{
+				glProgram.timeUniform = gl.getUniformLocation(glProgram, "iGlobalTime");
+				glProgram.resUniform = gl.getUniformLocation(glProgram, "iResolution");
+				glProgram.posUniform = gl.getUniformLocation(glProgram, "iCamPos");
+				glProgram.fwdUniform = gl.getUniformLocation(glProgram, "iCamFwd");
+				glProgram.upUniform = gl.getUniformLocation(glProgram, "iCamUp");
+			
+				// lighting toggles   
+				glProgram.sunUniform = gl.getUniformLocation(glProgram, "iSunOn");
+				glProgram.skyUniform = gl.getUniformLocation(glProgram, "iSkyOn");
+				glProgram.bounceUniform = gl.getUniformLocation(glProgram, "iBounceOn");
+				glProgram.occUniform = gl.getUniformLocation(glProgram, "iOccOn");
+				glProgram.fogUniform = gl.getUniformLocation(glProgram, "iFogOn");
+
+			}
+
+
+			function setUniforms()
+			{
+				gl.uniform1f(glProgram.timeUniform, currentTime);
+				gl.uniform3f(glProgram.resUniform, xres, yres, 0.0);
+				gl.uniform3fv(glProgram.posUniform, camPos);
+				gl.uniform3fv(glProgram.fwdUniform, camFwd);
+				gl.uniform3fv(glProgram.upUniform, camUp);
+
+				// lighting toggles   
+				gl.uniform1i(glProgram.sunUniform, sunOn);
+				gl.uniform1i(glProgram.skyUniform, skyOn);
+				gl.uniform1i(glProgram.bounceUniform, bounceOn);
+				gl.uniform1i(glProgram.occUniform, occOn);
+				gl.uniform1i(glProgram.fogUniform, fogOn);
+			}
+
+
+			function resize(gl) {
+				var realToCSSPixels = window.devicePixelRatio || 1;
+
+				// Lookup the size the browser is displaying the canvas in CSS pixels
+				// and compute a size needed to make our drawingbuffer match it in
+				// device pixels.
+				var displayWidth  = Math.floor(gl.canvas.clientWidth  * realToCSSPixels);
+				var displayHeight = Math.floor(gl.canvas.clientHeight * realToCSSPixels);
+
+				// Check if the canvas is not the same size.
+				if (gl.canvas.width  != displayWidth || gl.canvas.height != displayHeight) {
+
+					// Make the canvas the same size
+					gl.canvas.width  = displayWidth;
+					gl.canvas.height = displayHeight;
+
+					// Set the viewport to match
+					gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+				}
+
+				xres = displayWidth;
+				yres = displayHeight;
+			}
+
+
+		function updateFPS(){
+
+			var now = new Date().getTime();	
+
+			frameCount++;
+			elapsedTime += (now - lastTime);
+
+			lastTime = now;
+
+			if(elapsedTime >= 1000) {
+				fps = frameCount;
+				frameCount = 0;
+				elapsedTime -= 1000;
+			}
+
+			document.getElementById('hud').innerHTML = "FPS: " + fps;
+
+		}
+
+
+
+		////////// KEYBOARD FUNCTIONS ////////////
+
+		function handleKeyDown(event) {
+			currentlyPressedKeys[event.keyCode] = true;
+			// lighting toggles
+			if (currentlyPressedKeys[49]) {
+				sunOn = !sunOn;
+			}
+			if (currentlyPressedKeys[50]) {
+				skyOn = !skyOn;
+			}
+			if (currentlyPressedKeys[51]) {
+				bounceOn = !bounceOn;
+			}
+			if (currentlyPressedKeys[52]) {
+				occOn = !occOn;
+			}
+			if (currentlyPressedKeys[53]) {
+				fogOn = !fogOn;
+			}
+		}
+
+		function handleKeyUp(event) {
+			currentlyPressedKeys[event.keyCode] = false;
+		}
+		
+		function handleKeys(event) {
+			var tempVec = vec3.create();
+			
+			if (currentlyPressedKeys[69]) {
+				vec3.add(camPos, camPos, vec3.fromValues(0.0, 0.1, 0.0)); }
+			if (currentlyPressedKeys[81]) {
+				vec3.add(camPos, camPos, vec3.fromValues(0.0, -0.1, 0.0)); } 
+			if (currentlyPressedKeys[65]) {
+				vec3.scale(tempVec, camRight, 0.1);
+				vec3.subtract(camPos, camPos, tempVec); } 
+			if (currentlyPressedKeys[68]) {
+				vec3.scale(tempVec, camRight, 0.1);
+				vec3.add(camPos, camPos, tempVec); } 
+			if (currentlyPressedKeys[87]) {
+				vec3.scale(tempVec, camFwd, 0.1)
+				vec3.add(camPos, camPos, tempVec); } 
+			if (currentlyPressedKeys[83]) {
+				vec3.scale(tempVec, camFwd, 0.1)
+				vec3.subtract(camPos, camPos, tempVec); } 
+			if (currentlyPressedKeys[72]) {
+				firstMouse = true;
+				camPos = vec3.fromValues(startPosX, startPosY, startPosZ);
+				camFwd = vec3.fromValues(startFwdX, startFwdY, startFwdZ);
+				camUp = vec3.fromValues(0.0, 1.0, 0.0);
+				camRight = vec3.fromValues(1.0, 0.0, 0.0);}
+
+		}	
+
+
+		////////// MOUSE FUNCTIONS ////////////
+		var moveDistance = 0.3;	
+
+
+		function handleMouseDown(event) {
+			mouseDown = true;
+			lastMouseX = event.clientX;
+			lastMouseY = event.clientY;
+		}
+
+
+		function handleMouseUp(event) {
+			mouseDown = false;
+		}
+
+
+		function handleMouseMove(event) {
+			if (!mouseDown) {
+				return;
+			}
+
+			if(firstMouse) {
+				// fwd vector to spherical coordinates
+				  pitch = -radToDeg(Math.atan(startFwdY/startFwdX));
+				  yaw = -radToDeg(Math.acos(startFwdZ));
+				  deltaX = 0;
+				  deltaY = 0;
+				  firstMouse = false;
+			} 
+
+			var newX = event.clientX;
+			var newY = event.clientY;
+
+			var camRotateMat4 = mat4.create();
+			mat4.identity(camRotateMat4);
+			var camRotateMat4 = mat4.create();
+			mat4.identity(camRotateMat4);
+
+			var deltaX = (newX - lastMouseX) * moveDistance;
+			var deltaY = (newY - lastMouseY) * moveDistance;
+
+			yaw += deltaX;
+			pitch += deltaY;
+
+
+			if (pitch > 89.0)
+				pitch = 89.0;
+			if (pitch < -89.0)
+				pitch = -89.0;
+
+			var newFwdX = Math.sin(degToRad(-yaw)) * Math.cos(degToRad(-pitch));
+		    var newFwdY = Math.sin(degToRad(-pitch));
+			var newFwdZ = Math.cos(degToRad(-yaw)) * Math.cos(degToRad(-pitch));
+
+			vec3.set(camFwd, newFwdX, newFwdY, newFwdZ);
+			vec3.normalize(camFwd, camFwd);
+
+			// generate new up vector
+			vec3.cross(camRight, camFwd, vec3.fromValues(0.0, 1.0, 0.0)); 
+			vec3.cross(camUp, camRight, camFwd);
+			vec3.normalize(camUp, camUp);
+
+			vec3.cross(camRight, camFwd, camUp);
+			vec3.normalize(camRight, camRight);
+
+			lastMouseX = newX;
+			lastMouseY = newY;
+		}
+
+	
+		// extra math
+		function degToRad(degrees) {
+			return degrees * Math.PI / 180;
+		}
+
+		function radToDeg(radians){
+			return radians / Math.PI * 180;
+		}
+
+
+		</script>
+
+
+	</head>
+
+	<body onload="initWebGL()">
+		<canvas id="glcanvas"> 
+			Your browser does not support the HTML5 canvas element.
+		</canvas>
+
+
+		<div id="hud">
+		</div>
+	</body>
+</html>

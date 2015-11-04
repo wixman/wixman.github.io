@@ -51,8 +51,102 @@ float sdBox( vec3 p, vec3 b )
 }
 
 
+
+float AO = 0.0;
+const float minimumDistanceToSurface = 0.0003;
+
+
+
+
+// AO = scale surface brightness by this value. 0 = deep valley, 1 = high ridge
+float bulb(vec3 p, float power) {
+	// Rotate the query point into the reference frame of the function
+
+	vec3 P = p;
+
+	AO = 1.0;
+	
+	// Sample distance function for a sphere:
+	// return length(P) - 1.0;
+	
+	// Unit rounded box (http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm)
+	//return length(max(abs(P) - 1.0, 0.0)) - 0.1;	
+	
+	// This is a 3D analog of the 2D Mandelbrot set. Altering the mandlebulbExponent
+	// affects the shape.
+	// See the equation at
+	// http://blog.hvidtfeldts.net/index.php/2011/09/distance-estimated-3d-fractals-v-the-mandelbulb-different-de-approximations/	
+	vec3 Q = P;
+	
+	// Put the whole shape in a bounding sphere to 
+	// speed up distant ray marching. This is necessary
+	// to ensure that we don't expend all ray march iterations
+	// before even approaching the surface
+	{
+		const float externalBoundingRadius = 1.2;
+		float r = length(P) - externalBoundingRadius;
+		// If we're more than 1 unit away from the
+		// surface, return that distance
+		if (r > 1.0) { return r; }
+	}
+
+	// Embed a sphere within the fractal to fill in holes under low iteration counts
+	const float internalBoundingRadius = 0.72;
+
+	// Used to smooth discrete iterations into continuous distance field
+	// (similar to the trick used for coloring the Mandelbrot set)	
+	float derivative = 1.0;
+	
+	for (int i = 0; i < 10; ++i) {
+		// Darken as we go deeper
+		AO *= 0.725;
+		float r = length(Q);
+		
+		if (r > 2.0) {	
+			// The point escaped. Remap AO for more brightness and return
+			AO = min((AO + 0.075) * 4.1, 1.0);
+			return min(length(P) - internalBoundingRadius, 0.5 * log(r) * r / derivative);
+		} else {		
+			// Convert to polar coordinates and then rotate by the power
+			float theta = acos(Q.z / r) * power;
+			float phi   = atan(Q.y, Q.x) * power;			
+			
+			// Update the derivative
+			derivative = pow(r, power - 1.0) * power * derivative + 1.0;
+			
+			// Convert back to Cartesian coordinates and 
+			// offset by the original point (which we're orbiting)
+			float sinTheta = sin(theta);
+			
+			Q = vec3(sinTheta * cos(phi),
+					    sinTheta * sin(phi),
+					    cos(theta)) * pow(r, power) + P;
+		}			
+	}
+	
+	// Never escaped, so either already in the set...or a complete miss
+	return minimumDistanceToSurface;
+}
+
+
+
+
+float distanceFunction(vec3 p)
+{
+	float power = 8.0 + cos(iGlobalTime * 0.3) * 1.0;
+	vec3 p2 = p + vec3(0.5, 1.0, 3.0);
+	vec3 p3 = p + vec3(0.5, 3.0, 3.0);
+	vec3 p4 = p + vec3(3.5, 3.0, 3.0);
+	return min(min(min(bulb(p, power), bulb(p2, power - 2.0)), bulb(p3, power - 4.0)), bulb(p4, power - 6.0));
+}
+
+
+
+
+
+
 // main distance function
-float distanceFunction(vec3 p )
+float distanceFunction_old(vec3 p )
 {
    	p *= m1 * m2; 
 	
@@ -86,10 +180,9 @@ float intersect(vec3 rayOrigin, vec3 rayDir)
 	vec4 res = vec4(-1.0);	
 	float h = 1.0;
 
-	// create 3x3 rotation matrix
     for(int i = 0; i < 64; ++i)
     {
-		if( h < 0.005 || t > 10.0 ) 
+		if( h < 0.001 || t > 10.0 ) 
 			break;
 		
 		vec3 p = rayOrigin + rayDir * t; // our position along the ray
