@@ -26,6 +26,7 @@ float  _focalLength = 1.67; // Distance between eye and image-plane
 
 float d1;
 float d2;
+float pixel_size = 0.0;
 
 // our rotation matrix for the animated cube
 mat3 m1= mat3(cos(iGlobalTime * 0.6), 0.0, sin(iGlobalTime * 0.6),
@@ -52,148 +53,106 @@ float sdBox( vec3 p, vec3 b )
 
 
 
-float AO = 0.0;
-const float minimumDistanceToSurface = 0.0003;
-
-
-
-
-// AO = scale surface brightness by this value. 0 = deep valley, 1 = high ridge
-float bulb(vec3 p, float power) {
-	// Rotate the query point into the reference frame of the function
-
-	vec3 P = p;
-
-	AO = 1.0;
+vec3 bulb(vec3 p, float power) {
+	p.xyz = p.xzy;
+	vec3 z = p;
+	vec3 dz=vec3(0.0);
+	power = power + sin(iGlobalTime * 0.3);
+	/*float power = 8.0 + sin(iGlobalTime * 0.3);*/
+	float r, theta, phi;
+	float dr = 1.0;
 	
-	// Sample distance function for a sphere:
-	// return length(P) - 1.0;
+	float t0 = 1.0;
 	
-	// Unit rounded box (http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm)
-	//return length(max(abs(P) - 1.0, 0.0)) - 0.1;	
-	
-	// This is a 3D analog of the 2D Mandelbrot set. Altering the mandlebulbExponent
-	// affects the shape.
-	// See the equation at
-	// http://blog.hvidtfeldts.net/index.php/2011/09/distance-estimated-3d-fractals-v-the-mandelbulb-different-de-approximations/	
-	vec3 Q = P;
-	
-	// Put the whole shape in a bounding sphere to 
-	// speed up distant ray marching. This is necessary
-	// to ensure that we don't expend all ray march iterations
-	// before even approaching the surface
-	{
-		const float externalBoundingRadius = 1.2;
-		float r = length(P) - externalBoundingRadius;
-		// If we're more than 1 unit away from the
-		// surface, return that distance
-		if (r > 1.0) { return r; }
-	}
-
-	// Embed a sphere within the fractal to fill in holes under low iteration counts
-	const float internalBoundingRadius = 0.72;
-
-	// Used to smooth discrete iterations into continuous distance field
-	// (similar to the trick used for coloring the Mandelbrot set)	
-	float derivative = 1.0;
-	
-	for (int i = 0; i < 10; ++i) {
-		// Darken as we go deeper
-		AO *= 0.725;
-		float r = length(Q);
+	for(int i = 0; i < 7; ++i) {
+		r = length(z);
+		if(r > 2.0) continue;
+		theta = atan(z.y / z.x);
+		phi = asin(z.z / r);
 		
-		if (r > 2.0) {	
-			// The point escaped. Remap AO for more brightness and return
-			AO = min((AO + 0.075) * 4.1, 1.0);
-			return min(length(P) - internalBoundingRadius, 0.5 * log(r) * r / derivative);
-		} else {		
-			// Convert to polar coordinates and then rotate by the power
-			float theta = acos(Q.z / r) * power;
-			float phi   = atan(Q.y, Q.x) * power;			
-			
-			// Update the derivative
-			derivative = pow(r, power - 1.0) * power * derivative + 1.0;
-			
-			// Convert back to Cartesian coordinates and 
-			// offset by the original point (which we're orbiting)
-			float sinTheta = sin(theta);
-			
-			Q = vec3(sinTheta * cos(phi),
-					    sinTheta * sin(phi),
-					    cos(theta)) * pow(r, power) + P;
-		}			
+		dr = pow(r, power - 1.0) * dr * power + 1.0;
+	
+		r = pow(r, power);
+		theta = theta * power;
+		phi = phi * power;
+		
+		z = r * vec3(cos(theta)*cos(phi), sin(theta)*cos(phi), sin(phi)) + p;
+		
+		t0 = min(t0, r);
 	}
-	
-	// Never escaped, so either already in the set...or a complete miss
-	return minimumDistanceToSurface;
+	return vec3(0.5 * log(r) * r / dr, t0, 0.0);
 }
 
 
-
-
-float distanceFunction(vec3 p)
+vec3 distanceFunction(vec3 p)
 {
-	float power = 8.0 + cos(iGlobalTime * 0.3) * 1.0;
-	vec3 p2 = p + vec3(0.5, 1.0, 3.0);
-	vec3 p3 = p + vec3(0.5, 3.0, 3.0);
-	vec3 p4 = p + vec3(3.5, 3.0, 3.0);
-	return min(min(min(bulb(p, power), bulb(p2, power - 2.0)), bulb(p3, power - 4.0)), bulb(p4, power - 6.0));
-}
-
-
-
-
-
-
-// main distance function
-float distanceFunction_old(vec3 p )
-{
-   	p *= m1 * m2; 
+	vec3 p1 = p * vec3(1.0, 1.0, 1.0) + vec3(0.0, 1.0, 3.0);
 	
-	float dist = sdBox( p, vec3(1.0) );
+	vec3 bulb1 = bulb(p, 8.0);
+	vec3 bulb2 = bulb(p1, 6.0);
 
-    float s = 1.0; // initialize scale to zero
-    
-    for( int m=0; m<4; m++ )
-    {
-        vec3 a = mod( p*s, 2.0 )-1.0; // repeat
-        s *= 3.0; // shrink cross every iteration
-        vec3 r = abs(1.0 - 3.0*abs(a));
-        float dista = max(r.x,r.y);
-        float distb = max(r.y,r.z);
-        float distc = max(r.z,r.x);
-        float c = (min(dista,min(distb,distc))-1.0)/s;
 
-        if( c>dist )
-        {
-          dist = c;
-        }
-    }
-
-    return dist;
+	vec3 finalBulb = vec3(min(bulb1.x, bulb2.x), bulb1.y * bulb2.y, 0.0);
+	
+	return finalBulb;
 }
 
 
-float intersect(vec3 rayOrigin, vec3 rayDir)
+vec3 intersect(vec3 rayOrigin, vec3 rayDir)
 {
     float t = 0.0; // marching distance
-	vec4 res = vec4(-1.0);	
+	float res_t = 0.0;
+	float res_d = 1000.0;
+
+	vec3 c, res_c;	
+
+	float max_error = 1000.0;
+	float d = 1.0;
+	float pd = 100.0;
+	float os = 0.0;
+	float step = 0.0;
+	float error = 1000.0;
+
 	float h = 1.0;
 
-    for(int i = 0; i < 64; ++i)
+    for( int i=0; i<48; i++ )
     {
-		if( h < 0.001 || t > 10.0 ) 
-			break;
-		
-		vec3 p = rayOrigin + rayDir * t; // our position along the ray
-        h = distanceFunction(p);
-        t += h; 
-	}
-   
-	if( t > 10.0 )
-		t = -1.0;
+        if( error < pixel_size*0.5 || t > 20.0 )
+        {
+        }
+        else{  // avoid broken shader on windows
+            c = distanceFunction(rayOrigin + rayDir*t);
+            d = c.x;
 
-    return t;
+            if(d > os)
+            {
+                os = 0.4 * d*d/pd;
+                step = d + os;
+                pd = d;
+            }
+            else
+            {
+                step =-os; os = 0.0; pd = 100.0; d = 1.0;
+            }
+
+            error = d / t;
+
+            if(error < max_error) 
+            {
+                max_error = error;
+                res_t = t;
+                res_c = c;
+            }
+        
+            t += step;
+        }
+
+    }
+
+	if( t>20.0/* || max_error > pixel_size*/ ) res_t=-1.0;
+    return vec3(res_t, res_c.y, res_c.z);
+
+
 }
 
 
@@ -201,9 +160,9 @@ vec3 calcNormal(in vec3 p)
 {
     vec3 eps = vec3(.001,0.0,0.0);
     vec3 n;
-    n.x = distanceFunction(p+eps.xyy) - distanceFunction(p-eps.xyy);
-    n.y = distanceFunction(p+eps.yxy) - distanceFunction(p-eps.yxy);
-    n.z = distanceFunction(p+eps.yyx) - distanceFunction(p-eps.yyx);
+    n.x = distanceFunction(p+eps.xyy).x - distanceFunction(p-eps.xyy).x;
+    n.y = distanceFunction(p+eps.yxy).x - distanceFunction(p-eps.yxy).x;
+    n.z = distanceFunction(p+eps.yyx).x - distanceFunction(p-eps.yyx).x;
     return normalize(n);
 }
 
@@ -216,17 +175,18 @@ float softshadow( in vec3 rayOrigin, in vec3 rayDir, float mint, float k )
     for( int i=0; i<32; i++ )
     {
 		// raymarch along the light vector
-        h = distanceFunction(rayOrigin + rayDir*t);
+        h = (distanceFunction(rayOrigin + rayDir*t)).x;
         res = min( res, k*h/t );
 		t += clamp( h, 0.005, 0.1 );
     }
     return clamp(res,0.0,1.0);
 }
 
-vec3 sunCol = vec3(258.0, 228.0, 170.0) / 3555.0;
+
+vec3 sunCol = vec3(258.0, 128.0, 0.0) / 3555.0;
 vec3 sunDir = normalize(vec3(0.93, 1.0, -1.5));
-vec3 skyCol = vec3(0.09, 0.43, 0.95);
-vec3 groundCol = vec3(0.99, 0.95, 0.85);
+vec3 skyCol = vec3(0.2, 0.2, 0.95);
+vec3 groundCol = vec3(0.99, 0.45, 0.85);
 
 
 vec3 GetSunColor(vec3 rayDir, vec3 sunDir)
@@ -247,7 +207,7 @@ float GetOcc(vec3 p, vec3 n)
 	float occ = 0.0;
 	for(int i = 0; i < 10; ++i)
 	{
-		float d = distanceFunction(p + n * t);
+		float d = (distanceFunction(p + n * t)).x;
 		occ += t - d; // Actual distance to surface - distance field value
 		t += stepSize;
 	}
@@ -260,13 +220,15 @@ vec3 render(in vec3 rayOrigin, in vec3 rayDir)
 {
 	// background gradient based on normalized y component of ray direction
 	vec3 col;  
-	float dist = intersect(rayOrigin, rayDir);
+	vec3 dist = (intersect(rayOrigin, rayDir));
 	
-	if( dist > 0.0 )
+	if( dist.x > 0.0 )
 	{
-		vec3 p = rayOrigin + dist * rayDir; // sample position in space
+		vec3 p = rayOrigin + dist.x * rayDir; // sample position in space
 		vec3 n = calcNormal(p); 
-		float occ = 1.0 - GetOcc(p, n);
+		
+		float occ = dist.y; 
+		occ = pow(clamp(occ, 0.0, 1.0), 0.45);	
 		float sunShadow = softshadow(p, sunDir, 0.01, 1.0); 
 
 		occ = 1.0 - ( (1.0 - occ) * float(iOccOn) );
@@ -275,11 +237,13 @@ vec3 render(in vec3 rayOrigin, in vec3 rayDir)
 		col = (sunCol * float(iSunOn) ) * sunShadow * 25.0 ; //* dot(sunDir, n); // main sunlight
 		col += (skyCol * (n.y * 0.5 + 0.5) * occ) * float(iSkyOn); // add ambient from sky
 		col += (groundCol * 0.3 * (-n.y * 0.5 + 0.5) * occ) * float(iBounceOn); // add ambient from ground
+		col += mix(vec3(0.5, 0.1, 0.3), vec3(0.1, 0.0, 0.5), abs(cos(dist.y*4.0))) * (1.0-(1.0-occ)*0.5);
+
 
 		// add fog
 		if(iFogOn)
-		col = mix(vec3(0.98) + min(vec3(0.25),GetSunColor(rayDir, sunDir))*2.0, col, 
-				exp(-dist*0.085));
+		col = mix(vec3(0.58) + min(vec3(0.25),GetSunColor(rayDir, sunDir))*15.0, col, 
+				exp(-dist.x*0.085));
 
 	}
 
@@ -287,7 +251,7 @@ vec3 render(in vec3 rayOrigin, in vec3 rayDir)
 	{
 		// render bg ramp
 		col = mix(groundCol, skyCol, 0.5 + 0.5 * rayDir.y * 2.0);  
-        col += GetSunColor(rayDir, sunDir);
+        col += GetSunColor(rayDir, sunDir) * 3.0;
 	}
 
 	return col;
@@ -317,7 +281,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 	float vig = clamp((OuterVig-dist) / (OuterVig-InnerVig), 0.0, 1.0); 
 	vec4 vigColor = vec4(0.062745, 0.031372, 0.02353, 1.0);
 
-	fragColor = sqrt(clamp(mix(color, vigColor, pow((1.0 - vig), 5.0)), 0.0, 1.0));
+	fragColor = clamp(mix(color, vigColor, pow((1.0 - vig), 5.0)), 0.0, 1.0);
 }
 
 

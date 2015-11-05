@@ -70,12 +70,12 @@
 				xres = null,
 				yres = null;
 			
-			var startFwdX = 0.88;
-			var startFwdY = 0.25;
-			var startFwdZ = -0.39;
-			var startPosX = -3.027;
-			var startPosY = -0.521;
-			var startPosZ = 0.018;
+			var startFwdX = 0.6884;
+			var startFwdY = 0.427;
+			var startFwdZ = -0.586;
+			var startPosX = -1.167;
+			var startPosY = -0.251;
+			var startPosZ = -0.438;
 			
 			var camPos = vec3.fromValues(startPosX, startPosY, startPosZ);
 			var camFwd = vec3.fromValues(startFwdX, startFwdY, startFwdZ);
@@ -133,6 +133,7 @@
 						updateFPS();
 						requestAnimationFrame(animLoop, canvas);
 						resize(gl);
+						
 					} )();
 				}
 				
