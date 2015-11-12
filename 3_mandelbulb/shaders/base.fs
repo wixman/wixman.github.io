@@ -10,7 +10,6 @@ uniform vec3	  iResolution;
 uniform vec3	  iCamPos;
 uniform vec3	  iCamFwd;
 uniform vec3	  iCamUp;
-uniform bool      iNotST;
 
 // lighting toggles
 uniform bool      iSunOn;
@@ -19,37 +18,32 @@ uniform bool      iBounceOn;
 uniform bool      iOccOn;
 uniform bool      iFogOn;
 
+// CAMERA SETUP 
 vec3   camRight = cross(iCamFwd, iCamUp);
 float  _zNear  = 0.0; // Near plane distance from camera
 float  _zFar = 15.0; // Far plane distance from camera
 float  _focalLength = 1.67; // Distance between eye and image-plane
 
-float d1;
-float d2;
+// PERFORMANCE/QUALITY VARIABLES
+const int RM_ITERATIONS = 64;
+const int BULB_ITERATIONS = 7;
 
-// our rotation matrix for the animated cube
-mat3 m1= mat3(cos(iGlobalTime * 0.02 + 30.0), 0.0, sin(iGlobalTime * 0.02 + 30.0),
+
+// light setup
+vec3 sunCol = vec3(258.0, 128.0, 0.0) / 3555.0;
+vec3 sunDir = normalize(vec3(0.93, 1.0, -1.5));
+vec3 skyCol = vec3(0.2, 0.2, 1.95);
+vec3 groundCol = vec3(0.99, 0.45, 0.85);
+
+
+// our rotation matrix for the animations
+mat3 m1= mat3(cos(iGlobalTime * 0.02 + 1.3), 0.0, sin(iGlobalTime * 0.02 + 1.3),
 			  0.0, 1.0, 0.0,
-			  -sin(iGlobalTime * 0.02 + 30.0), 0.0, cos(iGlobalTime * 0.02 + 30.0) );        
+			  -sin(iGlobalTime * 0.02 + 1.3), 0.0, cos(iGlobalTime * 0.02 + 1.3) );        
 
-mat3 m2= mat3(cos(iGlobalTime * 0.02 + 5.0), -sin(iGlobalTime * 0.02 + 5.0), 0.0,
-			  sin(iGlobalTime * 0.02 + 5.0), cos(iGlobalTime * 0.02 + 5.0), 0.0,
+mat3 m2= mat3(cos(iGlobalTime * 0.02 + 1.0), -sin(iGlobalTime * 0.02 + 1.0), 0.0,
+			  sin(iGlobalTime * 0.02 + 1.0), cos(iGlobalTime * 0.02 + 1.0), 0.0,
 			  0.0, 0.0, 1.0 );        
-
-// return maximum component of a 3f vector
-float maxcomp(in vec3 p ) 
-{ 
-	return max(p.x,max(p.y,p.z));
-}
-
-// create a signed distance field of a box
-float sdBox( vec3 p, vec3 b )
-{
-  vec3  di = abs(p) - b;
-  float mc = maxcomp(di);
-  return min(mc,length(max(di,0.0)));
-}
-
 
 
 vec2 bulb(vec3 p, float power) {
@@ -61,7 +55,7 @@ vec2 bulb(vec3 p, float power) {
 	
 	float t0 = 1.0;
 	
-	for(int i = 0; i < 7; ++i) {
+	for(int i = 0; i < BULB_ITERATIONS; ++i) {
 		r = length(z);
 		if(r > 2.0) continue;
 		theta = atan(z.y / z.x);
@@ -107,7 +101,7 @@ vec3 intersect(vec3 rayOrigin, vec3 rayDir)
 	vec4 res = vec4(-1.0);	
 	vec2 h = vec2(1.0);
 
-    for(int i = 0; i < 64; ++i)
+    for(int i = 0; i < RM_ITERATIONS; ++i)
     {
 		if( h.x < 0.0001 || t > 5.0 ) 
 			break;
@@ -135,7 +129,7 @@ vec3 calcNormal(in vec3 p)
 }
 
 
-float softshadow( in vec3 rayOrigin, in vec3 rayDir, float mint, float k )
+float softShadow( in vec3 rayOrigin, in vec3 rayDir, float mint, float k )
 {
     float res = 1.0;
     float t = mint;
@@ -151,12 +145,6 @@ float softshadow( in vec3 rayOrigin, in vec3 rayDir, float mint, float k )
 }
 
 
-vec3 sunCol = vec3(258.0, 128.0, 0.0) / 3555.0;
-vec3 sunDir = normalize(vec3(0.93, 1.0, -1.5));
-vec3 skyCol = vec3(0.2, 0.2, 0.95);
-vec3 groundCol = vec3(0.99, 0.45, 0.85);
-
-
 vec3 GetSunColor(vec3 rayDir, vec3 sunDir)
 {
 	vec3 localRay = normalize(rayDir);
@@ -165,22 +153,6 @@ vec3 GetSunColor(vec3 rayDir, vec3 sunDir)
     sunIntensity += exp(-dist*12.0)*300.0;
 	sunIntensity = min(sunIntensity, 40000.0);
 	return sunCol * sunIntensity*0.025;
-}
-
-
-float GetOcc(vec3 p, vec3 n)
-{
-	float stepSize = 0.01;
-	float t = stepSize;
-	float occ = 0.0;
-	for(int i = 0; i < 10; ++i)
-	{
-		float d = (distanceFunction(p + n * t)).x;
-		occ += t - d; // Actual distance to surface - distance field value
-		t += stepSize;
-	}
-
-	return clamp(occ, 0.0, 1.0);
 }
 
 
@@ -197,16 +169,19 @@ vec3 render(in vec3 rayOrigin, in vec3 rayDir)
 		
 		float occ = dist.y; 
 		occ = pow(clamp(occ, 0.0, 1.0), 0.45);	
-		float sunShadow = softshadow(p, sunDir, 0.01, 1.0); 
+		float sunShadow = softShadow(p, sunDir, 0.01, 1.0); 
 
 		occ = 1.0 - ( (1.0 - occ) * float(iOccOn) );
 		sunShadow = 1.0 - ( (1.0 - sunShadow) * float(iSunOn) );
 
-		col = (sunCol * float(iSunOn) ) * sunShadow * 25.0 ; //* dot(sunDir, n); // main sunlight
+
+		// surface color
+		col = mix(vec3(0.8, 0.1, 0.3), vec3(0.1, 0.0, 0.5), abs(cos(dist.y*8.0))) * occ;
+
+		col += (sunCol * float(iSunOn) ) * sunShadow * 25.0 ; //* dot(sunDir, n); // main sunlight
 		col += (skyCol * (n.y * 0.5 + 0.5) * occ) * float(iSkyOn); // add ambient from sky
 		col += (groundCol * 0.3 * (-n.y * 0.5 + 0.5) * occ) * float(iBounceOn); // add ambient from ground
-		col += mix(vec3(0.5, 0.1, 0.3), vec3(0.1, 0.0, 0.5), abs(cos(dist.y*4.0))) * (1.0-(1.0-occ)*0.5);
-
+		
 
 		// add fog
 		if(iFogOn)
