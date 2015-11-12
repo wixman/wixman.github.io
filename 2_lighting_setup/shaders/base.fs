@@ -86,7 +86,6 @@ float intersect(vec3 rayOrigin, vec3 rayDir)
 	vec4 res = vec4(-1.0);	
 	float h = 1.0;
 
-	// create 3x3 rotation matrix
     for(int i = 0; i < 64; ++i)
     {
 		if( h < 0.005 || t > 10.0 ) 
@@ -224,7 +223,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 	float vig = clamp((OuterVig-dist) / (OuterVig-InnerVig), 0.0, 1.0); 
 	vec4 vigColor = vec4(0.062745, 0.031372, 0.02353, 1.0);
 
-	fragColor = sqrt(clamp(mix(color, vigColor, pow((1.0 - vig), 5.0)), 0.0, 1.0));
+	fragColor = clamp(mix(color, vigColor, pow((1.0 - vig), 5.0)), 0.0, 1.0);
 }
 
 

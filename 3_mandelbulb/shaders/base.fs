@@ -26,15 +26,14 @@ float  _focalLength = 1.67; // Distance between eye and image-plane
 
 float d1;
 float d2;
-float pixel_size = 0.0;
 
 // our rotation matrix for the animated cube
-mat3 m1= mat3(cos(iGlobalTime * 0.6), 0.0, sin(iGlobalTime * 0.6),
+mat3 m1= mat3(cos(iGlobalTime * 0.02 + 30.0), 0.0, sin(iGlobalTime * 0.02 + 30.0),
 			  0.0, 1.0, 0.0,
-			  -sin(iGlobalTime * 0.6), 0.0, cos(iGlobalTime * 0.6) );        
+			  -sin(iGlobalTime * 0.02 + 30.0), 0.0, cos(iGlobalTime * 0.02 + 30.0) );        
 
-mat3 m2= mat3(cos(iGlobalTime * 0.6), -sin(iGlobalTime * 0.6), 0.0,
-			  sin(iGlobalTime * 0.6), cos(iGlobalTime * 0.6), 0.0,
+mat3 m2= mat3(cos(iGlobalTime * 0.02 + 5.0), -sin(iGlobalTime * 0.02 + 5.0), 0.0,
+			  sin(iGlobalTime * 0.02 + 5.0), cos(iGlobalTime * 0.02 + 5.0), 0.0,
 			  0.0, 0.0, 1.0 );        
 
 // return maximum component of a 3f vector
@@ -53,12 +52,10 @@ float sdBox( vec3 p, vec3 b )
 
 
 
-vec3 bulb(vec3 p, float power) {
-	p.xyz = p.xzy;
+vec2 bulb(vec3 p, float power) {
+	/*p.xyz = p.xzy;*/
 	vec3 z = p;
 	vec3 dz=vec3(0.0);
-	power = power + sin(iGlobalTime * 0.3);
-	/*float power = 8.0 + sin(iGlobalTime * 0.3);*/
 	float r, theta, phi;
 	float dr = 1.0;
 	
@@ -80,79 +77,50 @@ vec3 bulb(vec3 p, float power) {
 		
 		t0 = min(t0, r);
 	}
-	return vec3(0.5 * log(r) * r / dr, t0, 0.0);
+	return vec2(0.5 * log(r) * r / dr, t0);
 }
 
 
-vec3 distanceFunction(vec3 p)
+vec2 distanceFunction(vec3 p) // where we composite our distance functions and create a final distance
 {
-	vec3 p1 = p * vec3(1.0, 1.0, 1.0) + vec3(0.0, 1.0, 3.0);
-	
-	vec3 bulb1 = bulb(p, 8.0);
-	vec3 bulb2 = bulb(p1, 6.0);
+	vec3 p1 = ((p + vec3(0.0, 1.0, 4.0)) * 0.5) *  m2;
 
+	vec3 p2 = p * m1;
+	p2.xyz = p2.xzy;
 
-	vec3 finalBulb = vec3(min(bulb1.x, bulb2.x), bulb1.y * bulb2.y, 0.0);
+	float power1 = 7.0  + sin(iGlobalTime * 0.1);
+	float power2 = 8.0  + cos(iGlobalTime * 0.1 + 10.0);
+
+	vec2 bulb1 = bulb(p1, power1);
+	vec2 bulb2 = bulb(p2, power2);
+
+	float bulbDist = min(bulb1.x, bulb2.x);
+	float AO = bulb1.y * bulb2.y;
 	
-	return finalBulb;
+	return vec2(bulbDist, AO);
 }
 
 
 vec3 intersect(vec3 rayOrigin, vec3 rayDir)
 {
     float t = 0.0; // marching distance
-	float res_t = 0.0;
-	float res_d = 1000.0;
+	vec4 res = vec4(-1.0);	
+	vec2 h = vec2(1.0);
 
-	vec3 c, res_c;	
-
-	float max_error = 1000.0;
-	float d = 1.0;
-	float pd = 100.0;
-	float os = 0.0;
-	float step = 0.0;
-	float error = 1000.0;
-
-	float h = 1.0;
-
-    for( int i=0; i<48; i++ )
+    for(int i = 0; i < 64; ++i)
     {
-        if( error < pixel_size*0.5 || t > 20.0 )
-        {
-        }
-        else{  // avoid broken shader on windows
-            c = distanceFunction(rayOrigin + rayDir*t);
-            d = c.x;
+		if( h.x < 0.0001 || t > 5.0 ) 
+			break;
+		
+		vec3 p = rayOrigin + rayDir * t; // our position along the ray
+        h = distanceFunction(p);
+        t += h.x; 
+	}
+   
+	if( t>5.0 ) 
+		t=-1.0;
 
-            if(d > os)
-            {
-                os = 0.4 * d*d/pd;
-                step = d + os;
-                pd = d;
-            }
-            else
-            {
-                step =-os; os = 0.0; pd = 100.0; d = 1.0;
-            }
-
-            error = d / t;
-
-            if(error < max_error) 
-            {
-                max_error = error;
-                res_t = t;
-                res_c = c;
-            }
-        
-            t += step;
-        }
-
-    }
-
-	if( t>20.0/* || max_error > pixel_size*/ ) res_t=-1.0;
-    return vec3(res_t, res_c.y, res_c.z);
-
-
+    return vec3(t, h.y, 0.0);
 }
 
 
