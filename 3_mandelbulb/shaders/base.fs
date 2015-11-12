@@ -46,32 +46,36 @@ mat3 m2= mat3(cos(iGlobalTime * 0.02 + 1.0), -sin(iGlobalTime * 0.02 + 1.0), 0.0
 			  0.0, 0.0, 1.0 );        
 
 
+// main mandelbulb distance function
 vec2 bulb(vec3 p, float power) {
-	/*p.xyz = p.xzy;*/
 	vec3 z = p;
 	vec3 dz=vec3(0.0);
 	float r, theta, phi;
 	float dr = 1.0;
 	
-	float t0 = 1.0;
+	float AO = 1.0;
 	
 	for(int i = 0; i < BULB_ITERATIONS; ++i) {
 		r = length(z);
 		if(r > 2.0) continue;
+
+		// convert to polar coordinates
 		theta = atan(z.y / z.x);
 		phi = asin(z.z / r);
 		
 		dr = pow(r, power - 1.0) * dr * power + 1.0;
-	
+
+		// scale and rotate the point
 		r = pow(r, power);
 		theta = theta * power;
 		phi = phi * power;
-		
+
+		// convert back to cartesian coordinates
 		z = r * vec3(cos(theta)*cos(phi), sin(theta)*cos(phi), sin(phi)) + p;
 		
-		t0 = min(t0, r);
+		AO = min(AO, r);
 	}
-	return vec2(0.5 * log(r) * r / dr, t0);
+	return vec2(0.5 * log(r) * r / dr, AO);
 }
 
 
@@ -203,7 +207,6 @@ vec3 render(in vec3 rayOrigin, in vec3 rayDir)
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
-	
 	vec2 uvn = fragCoord.xy / iResolution.xy; // 0 to 1 position
     vec2 uv = uvn * 2.0 - 1.0;  // transform coordinates to -1 to 1
     uv.x *= iResolution.x / iResolution.y;
