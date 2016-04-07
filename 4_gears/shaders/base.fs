@@ -148,7 +148,7 @@ float cog(vec3 p)
 
 	// gear += sin(p.y*500.0) * 0.0002;
 
-	gear += sin(length(p.xy) * 1800.0) * 0.0002; //radial displacement
+	gear += abs(sin(length(p.xy) * 1000.0)) * 0.0005; //radial displacement
 
 
 
