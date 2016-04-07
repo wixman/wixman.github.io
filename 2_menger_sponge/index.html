@@ -73,9 +73,9 @@
 			var startFwdX = 0.88;
 			var startFwdY = 0.25;
 			var startFwdZ = -0.39;
-			var startPosX = -3.027;
-			var startPosY = -0.521;
-			var startPosZ = 0.018;
+			var startPosX = -3.0;
+			var startPosY = -2.9;
+			var startPosZ = -2.9;
 			
 			var camPos = vec3.fromValues(startPosX, startPosY, startPosZ);
 			var camFwd = vec3.fromValues(startFwdX, startFwdY, startFwdZ);
@@ -356,7 +356,8 @@
 				vec3.subtract(camPos, camPos, tempVec); } 
 			if (currentlyPressedKeys[68]) {
 				vec3.scale(tempVec, camRight, 0.1);
-				vec3.add(camPos, camPos, tempVec); } 
+				vec3.add(camPos, camPos, tempVec);
+		   		console.log(camPos);	} 
 			if (currentlyPressedKeys[87]) {
 				vec3.scale(tempVec, camFwd, 0.1)
 				vec3.add(camPos, camPos, tempVec); } 
