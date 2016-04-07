@@ -25,35 +25,6 @@ float  _zFar = 15.0; // Far plane distance from camera
 float  _focalLength = 1.67; // Distance between eye and image-plane
 
 
-// repetition!
-vec3 opRep( vec3 p, vec3 c )
-{
-    return mod(p,c)-0.5*c;
-}
-
-// angle rep!
-vec2 opAngleRep(vec2 p, float repangle)
-{
-	// to polar
-	float angle = atan(p.y, p.x); 
-	float r = length(p);
-	angle = mod(angle, 1.0/repangle * 6.2831);
-
-	// to cartesian
-	p.x = sin(angle) * r; 
-	p.y = cos(angle) * r; 
-	return p;
-}
-
-vec2 opAngRep( vec2 p, float a )
-{
-	a = 6.2831/a; 
-
-	vec2 polar = vec2(atan(p.y, p.x), length(p));
-    polar.x = mod(polar.x + a / 2.0, a) - a / 2.0;
-    
-    return vec2(polar.y * vec2(cos(polar.x),sin(polar.x)));
-}
 
 // return maximum component of a 3f vector
 float maxcomp(in vec3 p ) 
@@ -86,6 +57,12 @@ float sdCappedCylinder( vec3 p, vec2 h )
   return min(max(d.x,d.y),0.0) + length(max(d,0.0));
 }
 
+// cylinder
+float sdCylinder( vec3 p, vec2 s)
+{
+    return max(abs(p.z) - s.y / 2.0,length(p.xy) - s.x);
+}
+
 
 // capped cone sdf
 float sdCappedCone( in vec3 p, in vec3 c )
@@ -106,39 +83,88 @@ float sdBox( vec3 p, vec3 b )
   return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
 }
 
+// repetition!
+vec3 opRep( vec3 p, vec3 c )
+{
+    return mod(p,c)-0.5*c;
+}
+
+// angular repetition
+vec3 opAngRep( vec3 p, float a )
+{
+	a = 6.2831/a; 
+
+	vec2 polar = vec2(atan(p.y, p.x), length(p));
+    polar.x = mod(polar.x + a / 2.0, a) - a / 2.0;
+    
+    return vec3(polar.y * vec2(cos(polar.x),sin(polar.x)), p.z);
+}
+
+// union
+float opU( float d1, float d2 )
+{
+    return min(d1,d2);
+}
+
+// smooth union
+float opSU( float a, float b, float k )
+{
+    float h = clamp( 0.5+0.5*(b-a)/k, 0.0, 1.0 );
+    return mix( b, a, h ) - k*h*(1.0-h);
+}
+
 // subtraction
 float opS( float d1, float d2 )
 {
     return max(-d1,d2);
 }
 
+// intersection
+float opI( float d1, float d2 )
+{
+    return max(d1,d2);
+}
 
 float cog(vec3 p)
 {
-	float disc = sdCappedCylinder(p, vec2(1.0, 0.02));
-	float beveldisc = sdCappedCylinder(p, vec2(0.7, 0.04));
-	float center = sdCappedCylinder(p, vec2(0.1, 0.1));
-	// optimization
-	/*if(disc > 0.5)*/
-		/*return disc;*/
+	float gear = sdCylinder(p , vec2(1.0,0.3)); // main gear shape 
 
-	vec2 repP = opAngRep(p.xz, 6.0);
+	if(gear > 0.5) // proxy optimization
+		return gear;
 
-
-	float spokes = sdBox(vec3(repP.x, p.y, repP.y) - vec3(1.0, 0.0, 0.0), vec3(0.2, 0.2, 0.2));
-
-	disc = min(disc, beveldisc);
-	float cog = opS(center, opS(spokes, disc));
-
+	vec3 repTeeth = opAngRep(p, 20.0); // repeated space for teeth
+	vec3 repSpokes = opAngRep(p, 6.0); // repeated space for spokes
 	
-	return cog;
+	float spokes = sdBox(repSpokes - vec3(0.0, 0.0, 0.0), vec3(0.8, 0.1, 0.05));
+
+	float teeth = opI(sdCylinder(repTeeth - vec3(1.0,0.4,0), vec2(0.5,0.25)), 
+		 sdCylinder(repTeeth - vec3(1.0,-0.4,0), vec2(0.5,0.25)));
+	teeth = opS(-sdCylinder(p,vec2(1.2,2.0)), teeth);
+	
+	gear = opU(gear, teeth);
+	gear = opS(sdCylinder(p, vec2(0.7, 0.55)), gear);
+   	gear = opSU(spokes, gear, 0.1);  
+	gear = opSU(sdCylinder(p , vec2(0.3,0.55)), gear, 0.1); 
+
+	// gear += sin(p.y*500.0) * 0.0002;
+
+	gear += sin(length(p.xy) * 800.0) * 0.0005;
+
+
+	return gear; 
 }
 
+
+// our rotation matrix for the animated cube
+mat3 m1= mat3(cos(iGlobalTime * 0.6), -sin(iGlobalTime * 0.6), 0.0,
+			  sin(iGlobalTime * 0.6), cos(iGlobalTime * 0.6), 0.0,
+			  0.0, 0.0, 1.0 );        
 
 // main distance function
 float distanceFunction(vec3 p )
 {
-	float cog = cog(p);
+	vec3 rotP = p * m1;  // create rotation matrix
+	float cog = cog(rotP);
     
 	return cog;
 }
@@ -249,7 +275,8 @@ vec3 render(in vec3 rayOrigin, in vec3 rayDir)
 		col += (skyCol * (n.y * 0.5 + 0.5) * occ) * float(iSkyOn); // add ambient from sky
 		col += (groundCol * 0.3 * (-n.y * 0.5 + 0.5) * occ) * float(iBounceOn); // add ambient from ground
 
-
+		// bronze inside	
+		/*col *= mix(vec3(0.5, 0.4, 0.1), vec3(0.6, 0.6, 1.0), abs(n.z));*/
 
 		// add fog
 		if(!iFogOn)
