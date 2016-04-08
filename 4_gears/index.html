@@ -70,15 +70,15 @@
 				xres = null,
 				yres = null;
 			
-			//var startFwdX = 0.88;
-			//var startFwdY = 0.25;
-			//var startFwdZ = -0.39;
-			var startFwdX = 0.79;
-			var startFwdY = -0.53;
-			var startFwdZ = -0.29;
-			var startPosX = -2.68;
-			var startPosY = 1.92;
-			var startPosZ = 1.05;
+			var startFwdX = 0.88;
+			var startFwdY = 0.25;
+			var startFwdZ = -0.39;
+			//var startFwdX = 0.14;
+			//var startFwdY = 0.227;
+			//var startFwdZ = -0.9578;
+			var startPosX = -0.47;
+			var startPosY = 1.272; 
+			var startPosZ = -3.800;
 			
 			var camPos = vec3.fromValues(startPosX, startPosY, startPosZ);
 			var camFwd = vec3.fromValues(startFwdX, startFwdY, startFwdZ);
@@ -357,23 +357,28 @@
 			if (currentlyPressedKeys[65]) {
 				vec3.scale(tempVec, camRight, 0.1);
 				vec3.subtract(camPos, camPos, tempVec);  
-				console.log(camPos);
-				console.log(camFwd);}
+			//	console.log(camPos);
+			//	console.log(camFwd);
+			}
 			if (currentlyPressedKeys[68]) {
 				vec3.scale(tempVec, camRight, 0.1);
 				vec3.add(camPos, camPos, tempVec);  
-				console.log(camPos);
-				console.log(camFwd);}
+		//		console.log(camPos);
+		//		console.log(camFwd);
+			}
+
 			if (currentlyPressedKeys[87]) {
 				vec3.scale(tempVec, camFwd, 0.1)
 				vec3.add(camPos, camPos, tempVec);  
-				console.log(camPos);
-				console.log(camFwd);}
+		//		console.log(camPos);
+		//		console.log(camFwd);
+			}
 			if (currentlyPressedKeys[83]) {
 				vec3.scale(tempVec, camFwd, 0.1)
 				vec3.subtract(camPos, camPos, tempVec);  
-				console.log(camPos);
-				console.log(camFwd);}
+				// console.log(camPos);
+				// console.log(camFwd);
+			}
 			if (currentlyPressedKeys[72]) {
 				firstMouse = true;
 				camPos = vec3.fromValues(startPosX, startPosY, startPosZ);

@@ -47,7 +47,7 @@ float sdEllipsoid( in vec3 p, in vec3 c, in vec3 r )
 // create an sdf of a torus
 float sdTorus( vec3 p, vec2 t )
 {
-    return length( vec2(length(p.xz)-t.x,p.y) )-t.y;
+    return length( vec2(length(p.xy)-t.x,p.z) )-t.y;
 }
 
 // capped cylinder
@@ -125,32 +125,34 @@ float opI( float d1, float d2 )
     return max(d1,d2);
 }
 
-float cog(vec3 p)
+float cog1(vec3 p, float r)
 {
-	float gear = sdCylinder(p , vec2(1.0,0.3)); // main gear shape 
+	
+	p.z = abs(p.z);
 
-	if(gear > 0.5) // proxy optimization
+	float gear = sdCylinder(p , vec2(1.0 * r, 0.3)); // main gear shape 
+
+	if(gear > 1.0) // proxy optimization
 		return gear;
 
-	vec3 repTeeth = opAngRep(p, 20.0); // repeated space for teeth
+	vec3 repTeeth = opAngRep(p, 20.0 * r); // repeated space for teeth
 	vec3 repSpokes = opAngRep(p, 6.0); // repeated space for spokes
 	
-	float spokes = sdBox(repSpokes - vec3(0.0, 0.0, 0.0), vec3(0.8, 0.1, 0.05));
+	float spokes = sdBox(repSpokes - vec3(0.0, 0.0, 0.0), vec3(0.8 * r, 0.1 * r, 0.05));
 
-	float teeth = opI(sdCylinder(repTeeth - vec3(1.0,0.4,0), vec2(0.5,0.25)), 
-		 sdCylinder(repTeeth - vec3(1.0,-0.4,0), vec2(0.5,0.25)));
-	teeth = opS(-sdCylinder(p,vec2(1.2,2.0)), teeth);
-	
-	gear = opU(gear, teeth);
-	gear = opS(sdCylinder(p, vec2(0.7, 0.55)), gear);
-   	gear = opSU(spokes, gear, 0.1);  
-	gear = opSU(sdCylinder(p , vec2(0.3,0.55)), gear, 0.1); 
+	float teeth = opI(sdCylinder(repTeeth - vec3(1.0 * r, 0.4, 0), vec2(0.5,0.25)), 
+		 sdCylinder(repTeeth - vec3(1.0 * r, -0.4,0), vec2(0.5,0.25)));
+	teeth = opS(-sdCylinder(p,vec2(r + 0.2, 1.0)), teeth); // trim end off teeth
+	teeth = opS(sdCylinder(p,vec2(r, 1.0)), teeth); // trim inside of teeth
+	gear = opSU(gear, teeth, 0.1); // combine gear and teeth
 
-	// gear += sin(p.y*500.0) * 0.0002;
+	gear = opS(sdCylinder(p, vec2(0.7 * r, 0.55)), gear); // cut main hole in middle
+	gear = opSU(spokes, gear, 0.1); // smooth combine spokes 
+	gear = opSU(sdCylinder(p , vec2(0.3 * r, 0.55)), gear, 0.2 * r); // smooth combine middle cylinder
+	gear = opS(sdCylinder(p , vec2(0.15, 4.0)), gear); // delete center 
+	gear = opS(sdTorus(p - vec3(0.0, 0.0, 0.22), vec2(0.85 * r, 0.1 * r)), gear ); // create groove
 
-	gear += abs(sin(length(p.xy) * 1000.0)) * 0.0005; //radial displacement
-
-
+	gear = opU(sdCylinder(p , vec2(0.12, 4.0)), gear); // add main rod 
 
 	return gear; 
 }
@@ -161,13 +163,26 @@ mat3 m1= mat3(cos(iGlobalTime * 0.6), -sin(iGlobalTime * 0.6), 0.0,
 			  sin(iGlobalTime * 0.6), cos(iGlobalTime * 0.6), 0.0,
 			  0.0, 0.0, 1.0 );        
 
+float timeoffset = -iGlobalTime + 0.5;  
+mat3 m2= mat3(cos(timeoffset * 0.3), -sin(timeoffset * 0.3), 0.0,
+			  sin(timeoffset * 0.3), cos(timeoffset * 0.3), 0.0,
+			  0.0, 0.0, 1.0 );        
+
 // main distance function
 float distanceFunction(vec3 p )
 {
-	vec3 rotP = p * m1;  // create rotation matrix
-	float cog = cog(rotP);
-    
-	return cog;
+	/*p = opRep(p, vec3(3.0, 3.0, 10.0));*/
+	/*p += vec3(1.0, 0.0, 0.0);*/
+
+	p.z = mod(p.z + 1.1, 2.2) - 1.1;
+	
+   	 	
+	vec3 rotP1 = p * m1;  // create rotation matrix
+	vec3 rotP2 = (p - vec3(2.3, 2.3, 0.0)) * m2;  // create rotation matrix
+	float cogA= cog1(rotP1, 1.0);
+	float cogB= cog1(rotP2, 2.0);
+   	return opU(cogA, cogB);
+
 }
 
 
@@ -178,7 +193,7 @@ float intersect(vec3 rayOrigin, vec3 rayDir)
 
     for(int i = 0; i < 64; ++i)
     {
-		if( h < 0.005 || t > 10.0 ) 
+		if( h < 0.005 || t > 50.0 ) 
 			break;
 		
 		vec3 p = rayOrigin + rayDir * t; // our position along the ray
@@ -186,7 +201,7 @@ float intersect(vec3 rayOrigin, vec3 rayDir)
         t += h; 
 	}
    
-	if( t > 10.0 )
+	if( t > 50.0 )
 		t = -1.0;
 
     return t;
@@ -280,13 +295,11 @@ vec3 render(in vec3 rayOrigin, in vec3 rayDir)
 		/*col *= mix(vec3(0.5, 0.4, 0.1), vec3(0.6, 0.6, 1.0), abs(n.z));*/
 
 		// add fog
-		if(!iFogOn)
+		if(iFogOn)
 		{
 			bgcol = clamp(bgcol, vec3(0.0), vec3(1.0));
 			col = mix(bgcol,  col, exp(-dist*0.085));
 		}
-		/*col = mix(vec3(0.98) + min(vec3(0.25),GetSunColor(rayDir, sunDir))*2.0, col, */
-				/*exp(-dist*0.085));*/
 
 	}
 
