@@ -26,7 +26,7 @@ float  _focalLength = 1.67; // Distance between eye and image-plane
 
 // PERFORMANCE/QUALITY VARIABLES
 const int RM_ITERATIONS = 64;
-const int BULB_ITERATIONS = 7;
+const int BULB_ITERATIONS = 5;
 
 
 // light setup
@@ -52,7 +52,6 @@ vec2 bulb(vec3 p, float power) {
 	vec3 dz=vec3(0.0);
 	float r, theta, phi;
 	float dr = 1.0;
-	
 	float AO = 1.0;
 	
 	for(int i = 0; i < BULB_ITERATIONS; ++i) {
