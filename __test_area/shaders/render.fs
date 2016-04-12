@@ -6,11 +6,12 @@ precision highp float;
 uniform float     iGlobalTime;
 uniform vec3	  iResolution;
 
-void main() {
-    vec2 st = gl_FragCoord.xy/iResolution.xy;
-    st.x *= iResolution.x/iResolution.y;
+uniform sampler2D u_image;
+uniform vec2 u_size;
 
-	vec3 color = vec3(st.x,st.y,abs(sin(iGlobalTime)));
-	/*color = iResolution;*/
-    gl_FragColor = vec4(color,1.0);
+const float COLOR_MIN = 0.2, COLOR_MAX = 0.4;
+
+void main() {
+	float v = (COLOR_MAX - texture2D(u_image, gl_FragCoord.xy / u_size).y) / (COLOR_MAX - COLOR_MIN);
+	gl_FragColor = vec4(v, v, v, 1);
 }
