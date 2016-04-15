@@ -144,8 +144,8 @@ function initWebGL()
 			currentTime = (Date.now() - startTime) / 1000;
 	
 			// update uniforms		
-//			gl.uniform2f(renderProgram.resUniform, xres, yres);
-//			gl.uniform1f(renderProgram.timeUniform, currentTime);
+			gl.uniform2f(renderProgram.resUniform, xres, yres);
+			gl.uniform1f(renderProgram.timeUniform, currentTime);
 		
 			updateFPS();
 			requestAnimationFrame(animLoop, canvas);
@@ -164,26 +164,28 @@ function initWebGL()
 }
 
 
-
 function getInitialState() {
-	var a = new Float32Array(4 * xres * yres);
-
+	var initState = new Float32Array(4 * xres * yres);
 	for (var y=0; y<yres; y++) {
 		for (var x=0; x<xres; x++) {
+
 			var i = xres*y + x;
-			var central_square = (x > xres/2-10 && x < xres/2 + 10 && y > yres/2-10 && y < yres/2+10);
-			if (central_square) {
-				a[4*i + 0] = 0.5 + Math.random() * 0.02 - 0.01;
-				a[4*i + 1] = 0.25 + Math.random() * 0.02 - 0.01;
+	
+			var center = (x < 10 && x > 0 && y < yres && y > yres - 10);
+				
+			if (center) {
+				initState[4*i + 0] = 0.5;
+				initState[4*i + 1] = 0.5;
 			} else {
-				a[4*i + 0] = 1.0;
-				a[4*i + 1] = 0;
+				initState[4*i + 0] = 1.0;
+				initState[4*i + 1] = 0;
 			}
 		}
 	}
 
-	return a;
+	return initState;
 }
+
 
 // Create, initialise, and bind a new texture
 function newTexture(gl, initial_state) {
