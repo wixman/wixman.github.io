@@ -9,38 +9,45 @@ uniform vec2	  iResolution;
 
 uniform sampler2D image;
 
-const float COLOR_MIN = 0.2, COLOR_MAX = 0.4;
+const float feed = 0.0545; //  
+const float kill = 0.062;
+/*const float feed = 0.0367; //  */
+/*const float kill = 0.0649;*/
 
-/*const float feed = 0.0545; //  */
-/*const float kill = 0.062;*/
-const float feed = 0.0367; //  
-const float kill = 0.0649;
-const float diffuseA = 0.2;
-const float diffuseB = 0.1;
+vec2 p = gl_FragCoord.xy, // position
+     currentValue = texture2D(image, p / iResolution).xy; // current texture value
+
+// current values of chemical A and B
+float A = currentValue.x, 
+	  B = currentValue.y;
+	
+// diffuse rate of each chemical
+const float diffA = 0.2;
+const float diffB = 0.1;
 
 const float TIMESTEP = 1.0; // change in time for each iteration
 
+
 void main() {
-	vec2 p = gl_FragCoord.xy, // position
-		 n = p + vec2(0.0, 1.0), // up
-		 e = p + vec2(1.0, 0.0), // right
-		 s = p + vec2(0.0, -1.0), // down
-		 w = p + vec2(-1.0, 0.0); // left
+	vec2 p1 = p + vec2(0.0, 1.0), // up
+		 p2 = p + vec2(1.0, 0.0), // right
+		 p3 = p + vec2(0.0, -1.0), // down
+		 p4 = p + vec2(-1.0, 0.0); // left
 
-	vec2 val = texture2D(image, p / iResolution).xy;
 		 
-		// Calculate 
-	vec2 laplacian = texture2D(image, n / iResolution).xy
-		+ texture2D(image, e / iResolution).xy
-		+ texture2D(image, s / iResolution).xy
-		+ texture2D(image, w / iResolution).xy
-		- 4.0 * val;
+	// Calculate 2D Laplacian - the difference between the average 
+	// 							of nearby cells and this cell
+	vec2 laplacian = texture2D(image, p1 / iResolution).xy
+			+ texture2D(image, p2 / iResolution).xy
+			+ texture2D(image, p3 / iResolution).xy
+			+ texture2D(image, p4 / iResolution).xy
+			- 4.0 * currentValue;
 
 
-	vec2 delta = vec2(diffuseA * laplacian.x - val.x*val.y*val.y + feed * (1.0-val.x),
-			diffuseB * laplacian.y + val.x*val.y*val.y - (kill + feed) * val.y);
+	vec2 delta = vec2(diffA * laplacian.x - A*B*B + feed * (1.0-A),
+			diffB * laplacian.y + A*B*B - (kill + feed) * B);
 
-	gl_FragColor = vec4(val + delta * TIMESTEP, 0, 0);
+	gl_FragColor = vec4(currentValue + delta * TIMESTEP, 0, 0);
 }
 
 
