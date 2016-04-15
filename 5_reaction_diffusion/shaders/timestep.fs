@@ -9,17 +9,11 @@ uniform vec2	  iResolution;
 
 uniform sampler2D image;
 
+// kill/feed rate of each chemical
 const float feed = 0.0545; //  
 const float kill = 0.062;
 /*const float feed = 0.0367; //  */
 /*const float kill = 0.0649;*/
-
-vec2 p = gl_FragCoord.xy, // position
-     currentValue = texture2D(image, p / iResolution).xy; // current texture value
-
-// current values of chemical A and B
-float A = currentValue.x, 
-	  B = currentValue.y;
 	
 // diffuse rate of each chemical
 const float diffA = 0.2;
@@ -29,6 +23,16 @@ const float TIMESTEP = 1.0; // change in time for each iteration
 
 
 void main() {
+	vec2 p = gl_FragCoord.xy, // position
+
+   	// pull current value from texture 
+	currentValue = texture2D(image, p / iResolution).xy; // current texture value
+	
+	// current values of chemical A and B
+	float A = currentValue.x, 
+		  B = currentValue.y;
+
+
 	vec2 p1 = p + vec2(0.0, 1.0), // up
 		 p2 = p + vec2(1.0, 0.0), // right
 		 p3 = p + vec2(0.0, -1.0), // down
