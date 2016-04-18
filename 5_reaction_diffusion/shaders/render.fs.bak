@@ -9,19 +9,17 @@ uniform vec2	  iResolution;
 
 uniform sampler2D image;
 
+const float COLOR_MIN = 0.2, COLOR_MAX = 0.4;
+
 vec3 color_A = vec3(0.2, 0.3, 0.7);
 vec3 color_B = vec3(0.5, 0.7, 0.8);
 
-float fit(float value, float oMin, float oMax, float nMin, float nMax){
-	return ((value - oMin)/ (oMax - oMin) + nMin) * (nMax - nMin);
-}
-
 void main() {
 	// draw the texture
-	vec2 uv = gl_FragCoord.xy/iResolution;
-	float main = fit(texture2D(image, uv).y, 0.2, 0.4, 0.0, 1.0);	
-
-	vec3 color = mix(color_A, color_B, 1.-main);
+	/*float v = (COLOR_MAX - texture2D(image, gl_FragCoord.xy / iResolution).y) / (COLOR_MAX - COLOR_MIN);*/
+	float main = texture2D(image, gl_FragCoord.xy/iResolution).y;	
+	/*vec3 color = mix(color_A, color_B, main);*/
+	vec3 color = vec3(mix(0.0, 1.0, main));
 	gl_FragColor = vec4(color, 1.0); 
 
 }
