@@ -171,9 +171,9 @@ function getInitialState() {
 
 			var i = xres*y + x;
 	
-			var center = (x < 10 && x > 0 && y < yres && y > yres - 10);
+			var emissionRegion = (x%80 < 40 && x > 0 && y < yres && y > yres - 10);
 				
-			if (center) {
+			if (emissionRegion) {
 				initState[4*i + 0] = 0.5;
 				initState[4*i + 1] = 0.5;
 			} else {

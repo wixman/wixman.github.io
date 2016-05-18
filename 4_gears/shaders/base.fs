@@ -24,7 +24,7 @@ float  _zNear  = 0.0; // Near plane distance from camera
 float  _zFar = 15.0; // Far plane distance from camera
 float  _focalLength = 1.67; // Distance between eye and image-plane
 
-
+#define PI 3.14159265359
 
 // return maximum component of a 3f vector
 float maxcomp(in vec3 p ) 
@@ -85,6 +85,12 @@ float sdBox( vec3 p, vec3 b )
 
 // repetition!
 vec3 opRep( vec3 p, vec3 c )
+{
+    return mod(p,c)-0.5*c;
+}
+
+// repetition!
+float opRep( float p, float c )
 {
     return mod(p,c)-0.5*c;
 }
@@ -152,38 +158,72 @@ float cog1(vec3 p, float r)
 	gear = opS(sdCylinder(p , vec2(0.15, 4.0)), gear); // delete center 
 	gear = opS(sdTorus(p - vec3(0.0, 0.0, 0.22), vec2(0.85 * r, 0.1 * r)), gear ); // create groove
 
-	gear = opU(sdCylinder(p , vec2(0.12, 4.0)), gear); // add main rod 
+	/*gear = opU(sdCylinder(p , vec2(0.12, 40.0)), gear); // add main rod */
 
 	return gear; 
 }
 
 
-// our rotation matrix for the animated cube
-mat3 m1= mat3(cos(iGlobalTime * 0.6), -sin(iGlobalTime * 0.6), 0.0,
-			  sin(iGlobalTime * 0.6), cos(iGlobalTime * 0.6), 0.0,
-			  0.0, 0.0, 1.0 );        
+// create axis/angle rotation matrix
+mat4 rotationMatrix(vec3 axis, float angle)
+{
+    axis = normalize(axis);
+    float s = sin(angle);
+    float c = cos(angle);
+    float oc = 1.0 - c;
+    
+    return mat4(oc*axis.x*axis.x+c,         oc*axis.x*axis.y-axis.z*s,  oc*axis.z*axis.x+axis.y*s,  0.0,
+                oc*axis.x*axis.y+axis.z*s,  oc*axis.y*axis.y+c,         oc*axis.y*axis.z-axis.x*s,  0.0,
+                oc*axis.z*axis.x-axis.y*s,  oc*axis.y*axis.z+axis.x*s,  oc*axis.z*axis.z+c,         0.0,
+                0.0,                        0.0,                        0.0,                        1.0);
+}
 
-float timeoffset = -iGlobalTime + 0.5;  
-mat3 m2= mat3(cos(timeoffset * 0.3), -sin(timeoffset * 0.3), 0.0,
-			  sin(timeoffset * 0.3), cos(timeoffset * 0.3), 0.0,
-			  0.0, 0.0, 1.0 );        
 
 // main distance function
 float distanceFunction(vec3 p )
 {
-	/*p = opRep(p, vec3(3.0, 3.0, 10.0));*/
-	/*p += vec3(1.0, 0.0, 0.0);*/
 
-	p.z = mod(p.z + 1.1, 2.2) - 1.1;
-	
-   	 	
-	vec3 rotP1 = p * m1;  // create rotation matrix
-	vec3 rotP2 = (p - vec3(2.3, 2.3, 0.0)) * m2;  // create rotation matrix
-	float cogA= cog1(rotP1, 1.0);
+/*p = opRep(p, vec3(12.0, 12.0, 2.2));*/
+	/*p += vec3(1.0, 0.0, 0.0);*/
+	vec3 repP_A = opRep(p, vec3(6.0));
+	/*repP_A.x = opRep(p.x, 6.0);*/
+	/*repP_A.z = opRep(p.z, 6.0);*/
+
+    vec3 repP_B = p;
+	repP_B.z = opRep(p.z, 6.0);
+    vec3 repP_C = p;
+	repP_B.z = opRep(p.z - 3., 6.0);
+
+
+
+	vec3 rotP1 = mat3(rotationMatrix(vec3(0.0, 0.0, 1.0), iGlobalTime * 0.6))  
+		* (repP_A + vec3(0.0, 0.0, 1.5)); 
+	float cogA= cog1(rotP1, 2.0);
+
+	vec3 rotP2 = mat3(rotationMatrix(vec3(0.0, 0.0, 1.0), -iGlobalTime * 0.6)) 
+		* (repP_A - vec3(0.0, 0.0, 1.5)); 
 	float cogB= cog1(rotP2, 2.0);
-   	return opU(cogA, cogB);
+
+
+    vec3 rotP3 = mat3(rotationMatrix(vec3(1.0, 0.0, 0.0), PI/2.0))
+			 		* (repP_A - vec3(0.0, 2.2, 0));
+	rotP3 *= mat3(rotationMatrix(vec3(0.0, 0.0, 1.0), iGlobalTime * 0.92));
+    float cogC= cog1(rotP3, 1.3);
+    
+	float rod1 = sdCylinder(rotP1 , vec2(0.12, 40.0)); // add main rod */
+	float rod2 = sdCylinder(rotP3 , vec2(0.12, 40.0)); // add main rod */
+   	 
+	float rods = opSU(rod1, rod2, 0.3);
+   		
+	
+	return opU(opU(cogC, opU(cogA, cogB)), rods);
+
+
 
 }
+
+
+
 
 
 float intersect(vec3 rayOrigin, vec3 rayDir)
