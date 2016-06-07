@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+	<head>
+		<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+		<meta content="utf-8" http-equiv="encoding">
+
+		<title>Curl Noise</title>
+		<style>
+			body{ background-color: #100806;
+					}
+					
+			canvas{ background-color: #100806;
+					position: absolute;
+					z-index:1;
+			}
+
+			body, html { width: 100%;
+				height: 100%;
+				border: 0px;
+				padding: 0px;
+				margin: 0px;
+				cursor: pointer;
+			   	cursor: hand; 
+			}
+		</style>
+
+		<script src="js/three.min.js"></script> 
+		<script src="js/OrbitControls.js"></script> 
+
+		<script>
+        window.onload = function() {
+
+
+			var width = window.innerWidth; 
+			var height = window.innerHeight; 
+            var renderer = new THREE.WebGLRenderer();
+            renderer.setSize( width, height );
+            document.body.appendChild( renderer.domElement );
+
+            var scene = new THREE.Scene();
+
+            var camera = new THREE.PerspectiveCamera(
+                35,             // Field of view
+                width / height,      // Aspect ratio
+                0.1,            // Near plane
+                10000           // Far plane
+            );
+            camera.position.set( -15, 10, 10 );
+            camera.lookAt( scene.position );
+
+            var geometry = new THREE.BoxGeometry( 5, 5, 5 );
+            var material = new THREE.MeshLambertMaterial( { color: 0xFFFF00 } );
+            var mesh = new THREE.Mesh( geometry, material );
+            scene.add( mesh );
+
+            var light = new THREE.PointLight( 0xFFFF00 );
+            light.position.set( 10, 0, 10 );
+            scene.add( light );
+
+            renderer.setClearColor( 0xdddddd, 1);
+            renderer.render( scene, camera );
+
+			window.onresize = function() {
+				renderer.setSize(window.innerWidth, window.innerHeight);
+			}
+        };
+        </script>

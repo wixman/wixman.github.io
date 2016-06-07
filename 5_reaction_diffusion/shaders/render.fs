@@ -9,8 +9,8 @@ uniform vec2	  iResolution;
 
 uniform sampler2D image;
 
-vec3 color_A = vec3(0.2, 0.3, 0.7);
-vec3 color_B = vec3(0.5, 0.7, 0.8);
+vec3 color_A = vec3(0.0, 0.0, 0.0);
+vec3 color_B = vec3(1.0, 1.0, 1.0);
 
 float fit(float value, float oMin, float oMax, float nMin, float nMax){
 	return ((value - oMin)/ (oMax - oMin) + nMin) * (nMax - nMin);
