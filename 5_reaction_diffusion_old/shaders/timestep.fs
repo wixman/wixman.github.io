@@ -23,7 +23,7 @@ const float TIMESTEP = 1.0; // change in time for each iteration
 
 
 void main() {
-	vec2 p = gl_FragCoord.xy, // position
+	vec2 p = gl_FragCoord.xy; // position
 
    	// pull current value from texture 
 	currentValue = texture2D(image, p / iResolution).xy; // current texture value

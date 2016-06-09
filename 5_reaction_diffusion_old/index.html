@@ -130,7 +130,7 @@ function initWebGL()
 	// MAIN LOOP
 		(function animLoop() {
 			gl.useProgram(timestepProgram);
-			for (var i=0; i<50; i++){
+			for (var i=0; i<50; i++){ // 50 iterations per update
 				gl.bindTexture(gl.TEXTURE_2D, [texture1, texture2][i % 2]);
 				gl.bindFramebuffer(gl.FRAMEBUFFER, [framebuffer2, framebuffer1][i % 2]);
 				drawScene();

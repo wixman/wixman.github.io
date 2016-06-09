@@ -1,6 +1,6 @@
 if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
-var camera, controls, scene, renderer, textureA, textureB, bufferScene, bufferMaterial, quad;
+var camera, controls, scene, renderer, textureA, textureB, quad;
 
 var params = {
 	speed: 10,
@@ -9,21 +9,21 @@ var params = {
 
 var uniforms = {
 	"u_resolution" : {type: 'v2',value:new THREE.Vector2(window.innerWidth, window.innerHeight)},
-	"u_color" : { type: "c", value: new THREE.Color( params.outColor ) }, // single Color
-	"u_source" : { type:"v3", value: new THREE.Vector3(0,0,0) },
-	"u_bufferTexture" : { type: "t", value: textureA }
-}
+	"u_color" : { type: "c", value: new THREE.Color( params.outColor ) },
+	"u_startFrame" : { type: "i", value: 1 },
+	"u_texture" : { type: "t", value: undefined }
+};
 
-// setup shaders
-var fs_source = null,
-	vs_source = null;
-initShaders();
+
+var fs_render_source = null;
+var fs_timestep_source = null;
+var vs_source = null;
 
 init();
 animate();
 
-
 function init() {
+	initShaders();
 
 	// SCENE	
 	scene = new THREE.Scene();
@@ -46,57 +46,36 @@ function init() {
 	camera.position.z = 2;
 
 
-	// SCENE 
-	//var plane = new THREE.PlaneBufferGeometry( window.innerWidth, window.innerHeight);
-	//scene.add(quad);
-
-
-	// BUFFER
-	bufferScene = new THREE.Scene();
-
-	textureA = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {minFilter:
-											   THREE.LinearFilter, magFilter: THREE.NearestFilter});
-	textureB = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {minFilter:
-											   THREE.LinearFilter, magFilter: THREE.NearestFilter});
-
-	// pass textureA to shader
-	bufferMaterial = new THREE.ShaderMaterial({ 
+	// MATERIALS 
+	timestepMaterial = new THREE.ShaderMaterial({ 
 					uniforms: uniforms,
 					vertexShader: vs_source,
-					fragmentShader: fs_source
+					fragmentShader: fs_timestep_source
 				});
 
-	var plane = new THREE.PlaneBufferGeometry( window.innerWidth, window.innerHeight);
-	var bufferObject = new THREE.Mesh( plane, bufferMaterial );
-	bufferScene.add(bufferObject);
+	renderMaterial = new THREE.ShaderMaterial({ 
+					uniforms: uniforms,
+					vertexShader: vs_source,
+					fragmentShader: fs_render_source
+				});
 
-	// draw textureB to screen
-	finalMaterial = new THREE.MeshBasicMaterial({map: textureB});
-	quad = new THREE.Mesh(plane, finalMaterial );
+	// GEO
+	var geometry = new THREE.PlaneBufferGeometry( window.innerWidth, window.innerHeight);
+	quad = new THREE.Mesh( geometry, renderMaterial );
 	scene.add(quad);
 
 
-	// MOUSE
-	var mouseDown = false;
-	function UpdateMousePosition(X,Y){
-		var mouseX = X;
-		var mouseY = window.innerHeight - Y;
-		bufferMaterial.uniforms.u_source.value.x = mouseX;
-		bufferMaterial.uniforms.u_source.value.y = mouseY;
-	}
-	document.onmousemove = function(event){
-		UpdateMousePosition(event.clientX,event.clientY)
-	}
-
-	document.onmousedown = function(event){
-		mouseDown = true;
-		bufferMaterial.uniforms.u_source.value.z = 0.1;
-	}
-	document.onmouseup = function(event){
-		mouseDown = false;
-		bufferMaterial.uniforms.u_source.value.z = 0;
-	}
-
+	// TEXTURES
+	textureA = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
+											minFilter: THREE.LinearFilter, 
+											magFilter: THREE.NearestFilter,
+											format: THREE.RGBAFormat, 
+											type: THREE.FloatType});
+	textureB = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
+											minFilter: THREE.LinearFilter, 
+											magFilter: THREE.NearestFilter,
+											format: THREE.RGBAFormat, 
+											type: THREE.FloatType});
 
 	// GUI
 	var gui = new dat.GUI({
@@ -141,13 +120,13 @@ function initShaders()
 		}  
 	}
 
-	xhr.open('GET', './shaders/base.fs', false);  // UPDATE THE PATH HERE
+	xhr.open('GET', './shaders/render.fs', false);  // UPDATE THE PATH HERE
 	xhr.send(null);
 
 	if (xhr.readyState == xhr.DONE) {
 		if(xhr.status === 200)
 		{
-			fs_source = xhr.responseText;
+			fs_render_source = xhr.responseText;
 		} else {  
 			console.error("Error: " + xhr.statusText);  
 		}
@@ -180,17 +159,30 @@ function animate() {
 
 }
 
-
 function render() {
-	// Draw to textureB
-	renderer.render(bufferScene, camera, textureB, true);
+	quad.material = timestepMaterial;	
 
-	// Swap textureA and B
-	var t = textureA;
-	textureA = textureB;
-	textureB = t;
-	quad.material.map = textureB;
-	uniforms.u_bufferTexture.value = textureA;
+	for(var i=0; i<18; ++i)
+	{
+		if(i%2)
+		{
+			uniforms.u_texture.value = textureA;
+			renderer.render(scene, camera, textureB, true);
+			uniforms.u_texture.value = textureB;
+		}
+		else
+		{
+			uniforms.u_texture.value = textureB;
+			renderer.render(scene, camera, textureA, true);
+			uniforms.u_texture.value = textureA;
+		}
 
+		uniforms.brush.value = new THREE.Vector2(-1, -1);
+	}
+
+	uniforms.u_startFrame.value = 0;
+
+	quad.material = renderMaterial;
 	renderer.render( scene, camera );
 }
+
