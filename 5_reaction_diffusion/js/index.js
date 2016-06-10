@@ -49,10 +49,8 @@ function init() {
 
 	
 	// CAMERA
-	camera = new THREE.OrthographicCamera( window.innerWidth / - 2, 
-		window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / - 2, 1, 1000 );
-	camera.position.z = 2;
-
+	camera = new THREE.OrthographicCamera(-0.5, 0.5, 0.5, -0.5, -10000, 10000);
+	camera.position.z = 100;
 
 	// MATERIALS 
 	timestepMaterial = new THREE.ShaderMaterial({ 
@@ -68,7 +66,7 @@ function init() {
 				});
 
 	// GEO
-	var geometry = new THREE.PlaneGeometry( window.innerWidth, window.innerHeight);
+	var geometry = new THREE.PlaneGeometry( 1.0, 1.0 ); 
 	quad = new THREE.Mesh( geometry, renderMaterial );
 	scene.add(quad);
 
@@ -76,14 +74,19 @@ function init() {
 	// TEXTURES
 	textureA = new THREE.WebGLRenderTarget(window.innerWidth/scale, window.innerHeight/scale, {
 											minFilter: THREE.LinearFilter, 
-											magFilter: THREE.NearestFilter,
+											magFilter: THREE.LinearFilter,
 											format: THREE.RGBAFormat, 
 											type: THREE.FloatType});
 	textureB = new THREE.WebGLRenderTarget(window.innerWidth/scale, window.innerHeight/scale, {
 											minFilter: THREE.LinearFilter, 
-											magFilter: THREE.NearestFilter,
+											magFilter: THREE.LinearFilter,
 											format: THREE.RGBAFormat, 
 											type: THREE.FloatType});
+
+    textureA.wrapS = THREE.RepeatWrapping;
+    textureA.wrapT = THREE.RepeatWrapping;
+    textureB.wrapS = THREE.RepeatWrapping;
+    textureB.wrapT = THREE.RepeatWrapping;
 
 
 	// MOUSE
