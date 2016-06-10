@@ -1,15 +1,20 @@
 if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
+
+
+// multiplies the texture resolution 
+var scale = 2;
+
 var camera, controls, scene, renderer, textureA, textureB, quad;
 
 var params = {
-	speed: 10,
+	//speed: 10,
 	mainColor: "#FFAE23",
 	bgColor: "#00AEF3"
 };
 
 var uniforms = {
-	"u_resolution" : {type: 'v2',value:new THREE.Vector2(window.innerWidth, window.innerHeight)},
+	"u_resolution" : {type: 'v2',value:new THREE.Vector2(window.innerWidth/scale, window.innerHeight/scale)},
 	"u_mcolor" : { type: "c", value: new THREE.Color( params.outColor ) },
 	"u_bgcolor" : { type: "c", value: new THREE.Color( params.outColor ) },
 	"u_startFrame" : { type: "i", value: 1 },
@@ -17,7 +22,6 @@ var uniforms = {
 	"u_source" : { type:"v3", value: new THREE.Vector3(0,0,0) },
 	"u_texture" : { type: "t", value: undefined }
 };
-
 
 var fs_render_source = null;
 var fs_timestep_source = null;
@@ -64,18 +68,18 @@ function init() {
 				});
 
 	// GEO
-	var geometry = new THREE.PlaneBufferGeometry( window.innerWidth, window.innerHeight);
+	var geometry = new THREE.PlaneGeometry( window.innerWidth, window.innerHeight);
 	quad = new THREE.Mesh( geometry, renderMaterial );
 	scene.add(quad);
 
 
 	// TEXTURES
-	textureA = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
+	textureA = new THREE.WebGLRenderTarget(window.innerWidth/scale, window.innerHeight/scale, {
 											minFilter: THREE.LinearFilter, 
 											magFilter: THREE.NearestFilter,
 											format: THREE.RGBAFormat, 
 											type: THREE.FloatType});
-	textureB = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
+	textureB = new THREE.WebGLRenderTarget(window.innerWidth/scale, window.innerHeight/scale, {
 											minFilter: THREE.LinearFilter, 
 											magFilter: THREE.NearestFilter,
 											format: THREE.RGBAFormat, 
@@ -87,8 +91,8 @@ function init() {
 	function UpdateMousePosition(X,Y){
 		var mouseX = X;
 		var mouseY = window.innerHeight - Y;
-		bufferMaterial.uniforms.u_source.value.x = mouseX;
-		bufferMaterial.uniforms.u_source.value.y = mouseY;
+		uniforms.u_source.value.x = mouseX/scale;
+		uniforms.u_source.value.y = mouseY/scale;
 	}
 	document.onmousemove = function(event){
 		UpdateMousePosition(event.clientX,event.clientY)
@@ -96,11 +100,11 @@ function init() {
 
 	document.onmousedown = function(event){
 		mouseDown = true;
-		bufferMaterial.uniforms.u_source.value.z = 0.1;
+		uniforms.u_source.value.z = 0.1;
 	}
 	document.onmouseup = function(event){
 		mouseDown = false;
-		bufferMaterial.uniforms.u_source.value.z = 0;
+		uniforms.u_source.value.z = 0;
 	}
 											
 											
@@ -108,7 +112,7 @@ function init() {
 	var gui = new dat.GUI({
 		height : 5 * 32 - 1					
 		});
-	gui.add(params, 'speed');
+	//gui.add(params, 'speed');
 	gui.addColor(params, 'mainColor');
 	gui.addColor(params, 'bgColor');
 
@@ -181,6 +185,8 @@ function onWindowResize() {
 
 	renderer.setSize( window.innerWidth, window.innerHeight );
 
+	uniforms.u_resolution.value.x = window.innerWidth/scale;
+	uniforms.u_resolution.value.x = window.innerHeight/scale;
 };
 
 
@@ -193,8 +199,8 @@ function render() {
         dt = now - (time || now);
     time = now;
 	dt *= 0.05; // scale it down an arbitrary amount
-	if(dt>1.0 || dt < 0.0)
-		dt = 1.0;	
+	if(dt>0.8 || dt < 0.0)
+		dt = 0.8;	
 	
 	uniforms.u_delta.value = dt;
 
@@ -225,6 +231,9 @@ function render() {
 	quad.material = renderMaterial;
 	renderer.render( scene, camera );
 	
+
+
+
 	stats.update();
 	uniforms.u_mcolor.value = new THREE.Color( params.mainColor );
 	uniforms.u_bgcolor.value = new THREE.Color( params.bgColor );

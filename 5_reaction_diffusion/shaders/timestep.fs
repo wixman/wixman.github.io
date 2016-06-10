@@ -1,8 +1,10 @@
 varying vec2 vUv;
+
 uniform sampler2D u_texture;
 uniform vec2 u_resolution;
 uniform int u_startFrame;
 uniform float u_delta;
+uniform vec3 u_source;
 
 float feed = 0.037;
 float kill = 0.06;
@@ -15,10 +17,10 @@ void main() {
 	if(u_startFrame == 1)
 	{
 		gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-		vec2 diff = (vUv - vec2(0.5, 0.5))/texel;	
-		float dist = dot(diff, diff);
-		if(dist < 25.0)
-			gl_FragColor.y = 0.9;	
+		/*vec2 diff = (vUv - vec2(0.5, 0.5))/texel;	*/
+		/*float dist = dot(diff, diff);*/
+		/*if(dist < 25.0)*/
+			/*gl_FragColor.y = 0.9;	*/
 		return;
 	}	
 
@@ -35,7 +37,14 @@ void main() {
       /*vec2 dst = uv + lapl * 0.1;	 */
 
 
-	/*vec3 col = vec3(vUv, 1.0);*/
+	if(u_source.z > 0.0)
+	{
+		vec2 diff = (vUv - u_source.xy/u_resolution)/texel;
+		float dist = dot(diff, diff);
+		if(dist < 5.0)
+			dst.g = 0.9;
+	}
+	
 	/*gl_FragColor = vec4(col, 1.0);*/
 	gl_FragColor = vec4(dst.x, dst.y, 0.0, 1.0);
 }
