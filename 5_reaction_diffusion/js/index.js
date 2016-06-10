@@ -4,14 +4,17 @@ var camera, controls, scene, renderer, textureA, textureB, quad;
 
 var params = {
 	speed: 10,
-	outColor: "#FFAE23"
+	mainColor: "#FFAE23",
+	bgColor: "#00AEF3"
 };
 
 var uniforms = {
 	"u_resolution" : {type: 'v2',value:new THREE.Vector2(window.innerWidth, window.innerHeight)},
-	"u_color" : { type: "c", value: new THREE.Color( params.outColor ) },
+	"u_mcolor" : { type: "c", value: new THREE.Color( params.outColor ) },
+	"u_bgcolor" : { type: "c", value: new THREE.Color( params.outColor ) },
 	"u_startFrame" : { type: "i", value: 1 },
 	"u_delta" : { type: "f", value: 1.0 },
+	"u_source" : { type:"v3", value: new THREE.Vector3(0,0,0) },
 	"u_texture" : { type: "t", value: undefined }
 };
 
@@ -78,12 +81,36 @@ function init() {
 											format: THREE.RGBAFormat, 
 											type: THREE.FloatType});
 
+
+	// MOUSE
+	var mouseDown = false;
+	function UpdateMousePosition(X,Y){
+		var mouseX = X;
+		var mouseY = window.innerHeight - Y;
+		bufferMaterial.uniforms.u_source.value.x = mouseX;
+		bufferMaterial.uniforms.u_source.value.y = mouseY;
+	}
+	document.onmousemove = function(event){
+		UpdateMousePosition(event.clientX,event.clientY)
+	}
+
+	document.onmousedown = function(event){
+		mouseDown = true;
+		bufferMaterial.uniforms.u_source.value.z = 0.1;
+	}
+	document.onmouseup = function(event){
+		mouseDown = false;
+		bufferMaterial.uniforms.u_source.value.z = 0;
+	}
+											
+											
 	// GUI
 	var gui = new dat.GUI({
 		height : 5 * 32 - 1					
 		});
 	gui.add(params, 'speed');
-	gui.addColor(params, 'outColor');
+	gui.addColor(params, 'mainColor');
+	gui.addColor(params, 'bgColor');
 
 	
 	// STATS	
@@ -199,6 +226,7 @@ function render() {
 	renderer.render( scene, camera );
 	
 	stats.update();
-	uniforms.u_color.value = new THREE.Color( params.outColor );
+	uniforms.u_mcolor.value = new THREE.Color( params.mainColor );
+	uniforms.u_bgcolor.value = new THREE.Color( params.bgColor );
 }
 
