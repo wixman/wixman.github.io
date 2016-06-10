@@ -11,6 +11,7 @@ var uniforms = {
 	"u_resolution" : {type: 'v2',value:new THREE.Vector2(window.innerWidth, window.innerHeight)},
 	"u_color" : { type: "c", value: new THREE.Color( params.outColor ) },
 	"u_startFrame" : { type: "i", value: 1 },
+	"u_delta" : { type: "f", value: 1.0 },
 	"u_texture" : { type: "t", value: undefined }
 };
 
@@ -20,7 +21,7 @@ var fs_timestep_source = null;
 var vs_source = null;
 
 init();
-animate();
+render();
 
 function init() {
 	initShaders();
@@ -95,7 +96,7 @@ function init() {
 
 	renderer.setClearColor( 0xdddddd, 1);
 	renderer.render( scene, camera );
-		
+
 	window.addEventListener( 'resize', onWindowResize, false );
 }
 
@@ -118,6 +119,18 @@ function initShaders()
 		} else {  
 			console.error("Error: " + xhr.statusText);  
 		}  
+	}
+
+	xhr.open('GET', './shaders/timestep.fs', false);  // UPDATE THE PATH HERE
+	xhr.send(null);
+
+	if (xhr.readyState == xhr.DONE) {
+		if(xhr.status === 200)
+		{
+			fs_timestep_source = xhr.responseText;
+		} else {  
+			console.error("Error: " + xhr.statusText);  
+		}
 	}
 
 	xhr.open('GET', './shaders/render.fs', false);  // UPDATE THE PATH HERE
@@ -144,25 +157,25 @@ function onWindowResize() {
 };
 
 
-function animate() {
-
-	requestAnimationFrame( animate );
-
-	stats.update();
-
-	uniforms.u_color.value = new THREE.Color( params.outColor );
-
-	var timer = Date.now() * 0.0001;
-	
-	render();
-
-
-}
-
+var time;
 function render() {
+	requestAnimationFrame( render );
+
+	// ‘delta’ time-based animation
+    var now = new Date().getTime(),
+        dt = now - (time || now);
+    time = now;
+	dt *= 0.05; // scale it down an arbitrary amount
+	if(dt>1.0 || dt < 0.0)
+		dt = 1.0;	
+	
+	uniforms.u_delta.value = dt;
+
+
+	// run sim timestep
 	quad.material = timestepMaterial;	
 
-	for(var i=0; i<18; ++i)
+	for(var i=0; i<10; ++i)
 	{
 		if(i%2)
 		{
@@ -177,12 +190,15 @@ function render() {
 			uniforms.u_texture.value = textureA;
 		}
 
-		uniforms.brush.value = new THREE.Vector2(-1, -1);
+		//uniforms.brush.value = new THREE.Vector2(-1, -1);
 	}
 
 	uniforms.u_startFrame.value = 0;
 
 	quad.material = renderMaterial;
 	renderer.render( scene, camera );
+	
+	stats.update();
+	uniforms.u_color.value = new THREE.Color( params.outColor );
 }
 
