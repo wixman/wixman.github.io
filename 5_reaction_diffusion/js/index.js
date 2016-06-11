@@ -1,16 +1,15 @@
 if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
-
-
 // multiplies the texture resolution 
 var scale = 2;
 
 var camera, controls, scene, renderer, textureA, textureB, quad;
 
 var params = {
-	//speed: 10,
-	mainColor: "#FFAE23",
-	bgColor: "#00AEF3"
+	feedRate: 0.037,
+	killRate: 0.06,
+	mainColor: "#000d70",
+	bgColor: "#cccccc"
 };
 
 var uniforms = {
@@ -20,6 +19,8 @@ var uniforms = {
 	"u_startFrame" : { type: "i", value: 1 },
 	"u_delta" : { type: "f", value: 1.0 },
 	"u_source" : { type:"v3", value: new THREE.Vector3(0,0,0) },
+	"u_feed" : { type: "f", value: 0.037 },
+	"u_kill" : { type: "f", value: 0.06 },
 	"u_texture" : { type: "t", value: undefined }
 };
 
@@ -115,7 +116,8 @@ function init() {
 	var gui = new dat.GUI({
 		height : 5 * 32 - 1					
 		});
-	//gui.add(params, 'speed');
+	gui.add(params, 'feedRate');
+	gui.add(params, 'killRate');
 	gui.addColor(params, 'mainColor');
 	gui.addColor(params, 'bgColor');
 
@@ -211,7 +213,7 @@ function render() {
 	// run sim timestep
 	quad.material = timestepMaterial;	
 
-	for(var i=0; i<10; ++i)
+	for(var i=0; i<15; ++i)
 	{
 		if(i%2)
 		{
@@ -240,5 +242,7 @@ function render() {
 	stats.update();
 	uniforms.u_mcolor.value = new THREE.Color( params.mainColor );
 	uniforms.u_bgcolor.value = new THREE.Color( params.bgColor );
+	uniforms.u_kill.value = params.killRate;
+	uniforms.u_feed.value = params.feedRate;
 }
 

@@ -5,9 +5,8 @@ uniform vec2 u_resolution;
 uniform int u_startFrame;
 uniform float u_delta;
 uniform vec3 u_source;
-
-float feed = 0.037;
-float kill = 0.06;
+uniform float u_kill;
+uniform float u_feed;
 
 void main() {
 	float step_x = 1.0/u_resolution.x;
@@ -17,10 +16,6 @@ void main() {
 	if(u_startFrame == 1)
 	{
 		gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-		/*vec2 diff = (vUv - vec2(0.5, 0.5))/texel;	*/
-		/*float dist = dot(diff, diff);*/
-		/*if(dist < 25.0)*/
-			/*gl_FragColor.y = 0.9;	*/
 		return;
 	}	
 
@@ -31,11 +26,9 @@ void main() {
 	vec2 uv3 = texture2D(u_texture, vUv+vec2(0.0, step_y)).rg;
 	
 	vec2 lapl = (uv0 + uv1 + uv2 + uv3 - 4.0*uv);//10485.76;
-	float du = 0.2097*lapl.r - uv.r*uv.g*uv.g + feed*(1.0 - uv.r);
-	float dv = 0.105*lapl.g + uv.r*uv.g*uv.g - (feed+kill)*uv.g;
+	float du = 0.2097*lapl.r - uv.r*uv.g*uv.g + u_feed*(1.0 - uv.r);
+	float dv = 0.105*lapl.g + uv.r*uv.g*uv.g - (u_feed+u_kill)*uv.g;
 	vec2 dst = uv + u_delta*vec2(du, dv);
-      /*vec2 dst = uv + lapl * 0.1;	 */
-
 
 	if(u_source.z > 0.0)
 	{
@@ -45,6 +38,5 @@ void main() {
 			dst.g = 0.9;
 	}
 	
-	/*gl_FragColor = vec4(col, 1.0);*/
 	gl_FragColor = vec4(dst.x, dst.y, 0.0, 1.0);
 }
