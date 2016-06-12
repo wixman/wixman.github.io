@@ -9,7 +9,7 @@ var params = {
 	feedRate: 0.037,
 	killRate: 0.06,
 	mainColor: "#000d70",
-	bgColor: "#cccccc"
+	bgColor: "#dddddd"
 };
 
 var uniforms = {

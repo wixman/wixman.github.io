@@ -1,4 +1,4 @@
-varying vec2 vUv;
+varying vec2 v_uv;
 
 uniform sampler2D u_texture;
 uniform vec2 u_resolution;
@@ -19,11 +19,11 @@ void main() {
 		return;
 	}	
 
-	vec2 uv = texture2D(u_texture, vUv).rg;
-	vec2 uv0 = texture2D(u_texture, vUv+vec2(-step_x, 0.0)).rg;
-	vec2 uv1 = texture2D(u_texture, vUv+vec2(step_x, 0.0)).rg;
-	vec2 uv2 = texture2D(u_texture, vUv+vec2(0.0, -step_y)).rg;
-	vec2 uv3 = texture2D(u_texture, vUv+vec2(0.0, step_y)).rg;
+	vec2 uv = texture2D(u_texture, v_uv).rg;
+	vec2 uv0 = texture2D(u_texture, v_uv+vec2(-step_x, 0.0)).rg;
+	vec2 uv1 = texture2D(u_texture, v_uv+vec2(step_x, 0.0)).rg;
+	vec2 uv2 = texture2D(u_texture, v_uv+vec2(0.0, -step_y)).rg;
+	vec2 uv3 = texture2D(u_texture, v_uv+vec2(0.0, step_y)).rg;
 	
 	vec2 lapl = (uv0 + uv1 + uv2 + uv3 - 4.0*uv);//10485.76;
 	float du = 0.2097*lapl.r - uv.r*uv.g*uv.g + u_feed*(1.0 - uv.r);
@@ -32,7 +32,7 @@ void main() {
 
 	if(u_source.z > 0.0)
 	{
-		vec2 diff = (vUv - u_source.xy/u_resolution)/texel;
+		vec2 diff = (v_uv - u_source.xy/u_resolution)/texel;
 		float dist = dot(diff, diff);
 		if(dist < 5.0)
 			dst.g = 0.9;
