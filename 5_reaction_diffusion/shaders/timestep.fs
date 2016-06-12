@@ -19,24 +19,24 @@ void main() {
 		return;
 	}	
 
-	vec2 uv = texture2D(u_texture, v_uv).rg;
-	vec2 uv0 = texture2D(u_texture, v_uv+vec2(-step_x, 0.0)).rg;
-	vec2 uv1 = texture2D(u_texture, v_uv+vec2(step_x, 0.0)).rg;
-	vec2 uv2 = texture2D(u_texture, v_uv+vec2(0.0, -step_y)).rg;
-	vec2 uv3 = texture2D(u_texture, v_uv+vec2(0.0, step_y)).rg;
+	vec2 value = texture2D(u_texture, v_uv).xy;
+	vec2 up = texture2D(u_texture, v_uv+vec2(0.0, step_y)).xy;
+	vec2 down = texture2D(u_texture, v_uv+vec2(0.0, -step_y)).xy;
+	vec2 left = texture2D(u_texture, v_uv+vec2(-step_x, 0.0)).xy;
+	vec2 right = texture2D(u_texture, v_uv+vec2(step_x, 0.0)).xy;
 	
-	vec2 lapl = (uv0 + uv1 + uv2 + uv3 - 4.0*uv);//10485.76;
-	float du = 0.2097*lapl.r - uv.r*uv.g*uv.g + u_feed*(1.0 - uv.r);
-	float dv = 0.105*lapl.g + uv.r*uv.g*uv.g - (u_feed+u_kill)*uv.g;
-	vec2 dst = uv + u_delta*vec2(du, dv);
+	vec2 lapl = (up + down + left + right - 4.0*value); // laplacian
+	float newA = 0.2097*lapl.x - value.x*value.y*value.y + u_feed*(1.0 - value.x);
+	float newB = 0.105*lapl.y + value.x*value.y*value.y - (u_feed+u_kill)*value.y;
+	vec2 new_value = value + u_delta*vec2(newA, newB);
 
 	if(u_source.z > 0.0)
 	{
 		vec2 diff = (v_uv - u_source.xy/u_resolution)/texel;
-		float dist = dot(diff, diff);
-		if(dist < 5.0)
-			dst.g = 0.9;
+		float sqdist = dot(diff, diff);
+		if(sqdist < 4.0)
+			new_value.y = 0.9;
 	}
 	
-	gl_FragColor = vec4(dst.x, dst.y, 0.0, 1.0);
+	gl_FragColor = vec4(new_value.x, new_value.y, 0.0, 1.0);
 }
