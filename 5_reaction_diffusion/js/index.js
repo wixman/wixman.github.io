@@ -6,10 +6,15 @@ var scale = 2;
 var camera, controls, scene, renderer, textureA, textureB, quad;
 
 var params = {
-	feedRate: 0.037,
-	killRate: 0.06,
-	mainColor: "#000d70",
-	bgColor: "#dddddd"
+	//Stats: false,
+	Feed: 0.037,
+	Kill: 0.06,
+	Color: "#000d70",
+	bgColor: "#dddddd",
+	Clear: function(){
+		uniforms.u_startFrame.value = 1;
+	}	
+	
 };
 
 var uniforms = {
@@ -114,20 +119,23 @@ function init() {
 	var gui = new dat.GUI({
 		height : 5 * 32 - 1					
 		});
-	gui.add(params, 'feedRate');
-	gui.add(params, 'killRate');
-	gui.addColor(params, 'mainColor');
-	gui.addColor(params, 'bgColor');
+	//gui.add(params, 'Stats');
+	gui.add(params, 'Feed');
+	gui.add(params, 'Kill');
+	gui.addColor(params, 'Color');
+	//gui.addColor(params, 'bgColor');
+	gui.add(params, 'Clear');
 	gui.close();	
 	//dat.GUI.toggleHide();
 	
 	// STATS	
-	stats = new Stats();
-	stats.domElement.style.position = 'absolute';
-	stats.domElement.style.top = 'auto';
-	stats.domElement.style.bottom = '0px';
-	stats.domElement.style.zIndex = 100;
-	container.appendChild( stats.domElement );
+	//stats = new Stats();
+	//stats.domElement.style.position = 'absolute';
+	//stats.domElement.style.top = 'auto';
+	//stats.domElement.style.bottom = '0px';
+	//stats.domElement.style.zIndex = 100;
+	//stats.domElement.style.visibility = 'hidden';
+	//container.appendChild( stats.domElement );
 
 	renderer.setClearColor( 0xdddddd, 1);
 	renderer.render( scene, camera );
@@ -235,10 +243,11 @@ function render() {
 	quad.material = renderMaterial;
 	renderer.render( scene, camera );
 	
-	stats.update();
-	uniforms.u_mcolor.value = new THREE.Color( params.mainColor );
+	//stats.update();
+
+		
+	uniforms.u_mcolor.value = new THREE.Color( params.Color );
 	uniforms.u_bgcolor.value = new THREE.Color( params.bgColor );
-	uniforms.u_kill.value = params.killRate;
-	uniforms.u_feed.value = params.feedRate;
+	uniforms.u_kill.value = params.Kill;
+	uniforms.u_feed.value = params.Feed;
 }
-scale
