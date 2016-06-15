@@ -118,7 +118,8 @@ function init() {
 	gui.add(params, 'killRate');
 	gui.addColor(params, 'mainColor');
 	gui.addColor(params, 'bgColor');
-
+	gui.close();	
+	//dat.GUI.toggleHide();
 	
 	// STATS	
 	stats = new Stats();
