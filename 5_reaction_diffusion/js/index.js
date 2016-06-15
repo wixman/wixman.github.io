@@ -75,20 +75,18 @@ function init() {
 	// TEXTURES
 	textureA = new THREE.WebGLRenderTarget(window.innerWidth/scale, window.innerHeight/scale, {
 											minFilter: THREE.LinearFilter, 
-											magFilter: THREE.LinearFilter,
+											//magFilter: THREE.NearestFilter,
+											wrapS : THREE.ClampToEdgeWrapping,
+											wrapT : THREE.ClampToEdgeWrapping,
 											format: THREE.RGBAFormat, 
 											type: THREE.FloatType});
 	textureB = new THREE.WebGLRenderTarget(window.innerWidth/scale, window.innerHeight/scale, {
 											minFilter: THREE.LinearFilter, 
-											magFilter: THREE.LinearFilter,
+											//magFilter: THREE.NearestFilter,
+											wrapS : THREE.ClampToEdgeWrapping,
+											wrapT : THREE.ClampToEdgeWrapping,
 											format: THREE.RGBAFormat, 
 											type: THREE.FloatType});
-
-    textureA.wrapS = THREE.RepeatWrapping;
-    textureA.wrapT = THREE.RepeatWrapping;
-    textureB.wrapS = THREE.RepeatWrapping;
-    textureB.wrapT = THREE.RepeatWrapping;
-
 
 	// MOUSE
 	var mouseDown = false;
@@ -217,15 +215,15 @@ function render() {
 	{
 		if(i%2)
 		{
-			uniforms.u_texture.value = textureA;
+			uniforms.u_texture.value = textureA.texture;
 			renderer.render(scene, camera, textureB, true);
-			uniforms.u_texture.value = textureB;
+			uniforms.u_texture.value = textureB.texture;
 		}
 		else
 		{
-			uniforms.u_texture.value = textureB;
+			uniforms.u_texture.value = textureB.texture;
 			renderer.render(scene, camera, textureA, true);
-			uniforms.u_texture.value = textureA;
+			uniforms.u_texture.value = textureA.texture;
 		}
 
 		//uniforms.brush.value = new THREE.Vector2(-1, -1);
@@ -236,13 +234,10 @@ function render() {
 	quad.material = renderMaterial;
 	renderer.render( scene, camera );
 	
-
-
-
 	stats.update();
 	uniforms.u_mcolor.value = new THREE.Color( params.mainColor );
 	uniforms.u_bgcolor.value = new THREE.Color( params.bgColor );
 	uniforms.u_kill.value = params.killRate;
 	uniforms.u_feed.value = params.feedRate;
 }
-
+scale
