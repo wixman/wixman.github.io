@@ -46,8 +46,8 @@ void main()
     float shading = clamp(dot(normal,light),0.5,1.0);
     vec3 finalshading = pow(shading, 2.0) * u_mcolor *vec3(2.0); 
 
-    float spec = pow(clamp(dot(light,reflect(vec3(0.0,0.0,-1.0),normal)),0.0,1.0), 8.0);
-	vec3 finalspec = spec * value * vec3(35.0);
+    float spec = pow(clamp(dot(light,reflect(vec3(0.0,0.0,-1.0),normal)),0.0,1.0), 4.0);
+	vec3 finalspec = spec * value * vec3(8.0);
 
 
 	float bgmask = fit(value, 0.05, 0.1, 0.0, 1.0); 
